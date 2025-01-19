@@ -91,7 +91,7 @@ func initDB(db *pebble.DB) error {
 	}
 
 	// Apply the batch write.
-	if err := batch.Commit(pebble.NoSync); err != nil {
+	if err := batch.Commit(pebble.Sync); err != nil {
 		str := fmt.Sprintf("failed to initialize metadata database: %v", err)
 		return convertErr(str, err)
 	}
