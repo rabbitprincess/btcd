@@ -2091,15 +2091,10 @@ func initDB(engine engine.Engine) error {
 	// The starting block file write cursor location is file num 0, offset 0.
 	tx, err := engine.NewTransaction()
 	if err != nil {
-		return err
+		return convertErr(err.Error(), err)
 	}
-
-	// Insert the starting block file write cursor location.
-	err = tx.Put(bucketizedKey(metadataBucketID, writeLocKeyName),
+	tx.Put(bucketizedKey(metadataBucketID, writeLocKeyName),
 		serializeWriteRow(0, 0))
-	if err != nil {
-		return fmt.Errorf("failed to set writeLocKeyName: %w", err)
-	}
 
 	// Create block index bucket and set the current bucket id.
 	//
@@ -2107,16 +2102,9 @@ func initDB(engine engine.Engine) error {
 	// there is no need to store the bucket index data for the metadata
 	// bucket in the database. However, the first bucket ID to use does
 	// need to account for it to ensure there are no key collisions.
-	err = tx.Put(bucketIndexKey(metadataBucketID, blockIdxBucketName),
+	tx.Put(bucketIndexKey(metadataBucketID, blockIdxBucketName),
 		blockIdxBucketID[:])
-	if err != nil {
-		return fmt.Errorf("failed to set blockIdxBucketName: %w", err)
-	}
-
-	err = tx.Put(curBucketIDKeyName, blockIdxBucketID[:])
-	if err != nil {
-		return fmt.Errorf("failed to set curBucketIDKeyName: %w", err)
-	}
+	tx.Put(curBucketIDKeyName, blockIdxBucketID[:])
 
 	// Apply the batch write.
 	if err := tx.Commit(); err != nil {
