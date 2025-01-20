@@ -15,27 +15,28 @@ import (
 var log = btclog.Disabled
 
 const (
-	dbType = "pebbledb"
+	LevelDB  = "leveldb"
+	PebbleDB = "pebbledb"
 )
 
 // parseArgs parses the arguments from the database Open/Create methods.
 func parseArgs(funcName string, args ...interface{}) (string, wire.BitcoinNet, error) {
 	if len(args) != 2 {
 		return "", 0, fmt.Errorf("invalid arguments to %s.%s -- "+
-			"expected database path and block network", dbType,
+			"expected database path and block network", LevelDB,
 			funcName)
 	}
 
 	dbPath, ok := args[0].(string)
 	if !ok {
 		return "", 0, fmt.Errorf("first argument to %s.%s is invalid -- "+
-			"expected database path string", dbType, funcName)
+			"expected database path string", LevelDB, funcName)
 	}
 
 	network, ok := args[1].(wire.BitcoinNet)
 	if !ok {
 		return "", 0, fmt.Errorf("second argument to %s.%s is invalid -- "+
-			"expected block network", dbType, funcName)
+			"expected block network", LevelDB, funcName)
 	}
 
 	return dbPath, network, nil
@@ -43,24 +44,24 @@ func parseArgs(funcName string, args ...interface{}) (string, wire.BitcoinNet, e
 
 // openDBDriver is the callback provided during driver registration that opens
 // an existing database for use.
-func openDBDriver(args ...interface{}) (database.DB, error) {
+func openDBDriver(dbType string, args ...interface{}) (database.DB, error) {
 	dbPath, network, err := parseArgs("Open", args...)
 	if err != nil {
 		return nil, err
 	}
 
-	return openDB(dbPath, network, false)
+	return openDB(dbType, dbPath, network, false)
 }
 
 // createDBDriver is the callback provided during driver registration that
 // creates, initializes, and opens a database for use.
-func createDBDriver(args ...interface{}) (database.DB, error) {
+func createDBDriver(dbType string, args ...interface{}) (database.DB, error) {
 	dbPath, network, err := parseArgs("Create", args...)
 	if err != nil {
 		return nil, err
 	}
 
-	return openDB(dbPath, network, true)
+	return openDB(dbType, dbPath, network, true)
 }
 
 // useLogger is the callback provided during driver registration that sets the
@@ -70,15 +71,25 @@ func useLogger(logger btclog.Logger) {
 }
 
 func init() {
-	// Register the driver.
-	driver := database.Driver{
-		DbType:    dbType,
-		Create:    createDBDriver,
-		Open:      openDBDriver,
-		UseLogger: useLogger,
+	// Register the drivers.
+	drivers := []database.Driver{
+		{
+			DbType:    LevelDB,
+			Create:    createDBDriver,
+			Open:      openDBDriver,
+			UseLogger: useLogger,
+		},
+		{
+			DbType:    PebbleDB,
+			Create:    createDBDriver,
+			Open:      openDBDriver,
+			UseLogger: useLogger,
+		},
 	}
-	if err := database.RegisterDriver(driver); err != nil {
-		panic(fmt.Sprintf("Failed to register database driver '%s': %v",
-			dbType, err))
+	for _, driver := range drivers {
+		if err := database.RegisterDriver(driver); err != nil {
+			panic(fmt.Sprintf("Failed to register database driver '%s': %v",
+				driver.DbType, err))
+		}
 	}
 }

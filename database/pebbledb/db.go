@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"sync"
@@ -17,6 +18,8 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/database"
 	"github.com/btcsuite/btcd/database/engine"
+	"github.com/btcsuite/btcd/database/engine/leveldb"
+	"github.com/btcsuite/btcd/database/engine/pebbledb"
 	"github.com/btcsuite/btcd/database/internal/treap"
 	"github.com/btcsuite/btcd/wire"
 )
@@ -1853,6 +1856,8 @@ func (tx *transaction) Rollback() error {
 // the database.DB interface.  All database access is performed through
 // transactions which are obtained through the specific Namespace.
 type db struct {
+	dbType string
+
 	writeLock sync.Mutex   // Limit to one write transaction at a time.
 	closeLock sync.RWMutex // Make database close block while txns active.
 	closed    bool         // Is the database closed?
@@ -1868,7 +1873,7 @@ var _ database.DB = (*db)(nil)
 //
 // This function is part of the database.DB interface implementation.
 func (db *db) Type() string {
-	return dbType
+	return db.dbType
 }
 
 // begin is the implementation function for the Begin database method.  See its
@@ -2075,4 +2080,98 @@ func fileExists(name string) bool {
 		}
 	}
 	return true
+}
+
+// initDB creates the initial buckets and values used by the package. This is
+// mainly in a separate function for testing purposes.
+func initDB(engine engine.Engine) error {
+	// The starting block file write cursor location is file num 0, offset 0.
+	tx, err := engine.NewTransaction()
+	if err != nil {
+		return err
+	}
+
+	// Insert the starting block file write cursor location.
+	err = tx.Put(bucketizedKey(metadataBucketID, writeLocKeyName),
+		serializeWriteRow(0, 0))
+	if err != nil {
+		return fmt.Errorf("failed to set writeLocKeyName: %w", err)
+	}
+
+	// Create block index bucket and set the current bucket id.
+	//
+	// NOTE: Since buckets are virtualized through the use of prefixes,
+	// there is no need to store the bucket index data for the metadata
+	// bucket in the database. However, the first bucket ID to use does
+	// need to account for it to ensure there are no key collisions.
+	err = tx.Put(bucketIndexKey(metadataBucketID, blockIdxBucketName),
+		blockIdxBucketID[:])
+	if err != nil {
+		return fmt.Errorf("failed to set blockIdxBucketName: %w", err)
+	}
+
+	err = tx.Put(curBucketIDKeyName, blockIdxBucketID[:])
+	if err != nil {
+		return fmt.Errorf("failed to set curBucketIDKeyName: %w", err)
+	}
+
+	// Apply the batch write.
+	if err := tx.Commit(); err != nil {
+		str := fmt.Sprintf("failed to initialize metadata database: %v", err)
+		return convertErr(str, err)
+	}
+
+	return nil
+}
+
+// openDB opens the database at the provided path.  database.ErrDbDoesNotExist
+// is returned if the database doesn't exist and the create flag is not set.
+func openDB(dbType string, dbPath string, network wire.BitcoinNet, create bool) (database.DB, error) {
+	// Error if the database doesn't exist and the create flag is not set.
+	metadataDbPath := filepath.Join(dbPath, metadataDbName)
+	dbExists := fileExists(metadataDbPath)
+	if !create && !dbExists {
+		str := fmt.Sprintf("database %q does not exist", metadataDbPath)
+		return nil, makeDbErr(database.ErrDbDoesNotExist, str, nil)
+	}
+
+	// Ensure the full path to the database exists.
+	if !dbExists {
+		// The error can be ignored here since the call to
+		// db Open will fail if the directory couldn't be
+		// created.
+		_ = os.MkdirAll(dbPath, 0700)
+	}
+
+	// Open the metadata database (will create it if needed).
+	var dbEngine engine.Engine
+	switch dbType {
+	case PebbleDB:
+		dbEngine = new(pebbledb.DB)
+	case LevelDB:
+		dbEngine = new(leveldb.DB)
+	default:
+		return nil, fmt.Errorf("driver %q is not registered", dbType)
+	}
+
+	err := dbEngine.Init(create, metadataDbPath)
+	if err != nil {
+		return nil, convertErr(err.Error(), err)
+	}
+
+	// Create the block store which includes scanning the existing flat
+	// block files to find what the current write cursor position is
+	// according to the data that is actually on disk.  Also create the
+	// database cache which wraps the underlying DB database to provide
+	// write caching.
+	store, err := newBlockStore(dbPath, network)
+	if err != nil {
+		return nil, convertErr(err.Error(), err)
+	}
+	cache := newDbCache(dbEngine, store, defaultCacheSize, defaultFlushSecs)
+	db := &db{dbType: dbType, store: store, cache: cache}
+
+	// Perform any reconciliation needed between the block and metadata as
+	// well as database initialization, if needed.
+	return reconcileDB(db, create)
 }

@@ -8,11 +8,17 @@ import (
 	"github.com/cockroachdb/pebble/bloom"
 )
 
-func NewDBEngine(create bool, dbPath string) (engine.Engine, error) {
+var _ engine.Engine = (*DB)(nil)
+
+type DB struct {
+	*pebble.DB
+}
+
+func (d *DB) Init(create bool, dbPath string) error {
 	opts := &pebble.Options{
-		Cache:                    pebble.NewCache(64 * 1024 * 1024), // 16 MB
-		ErrorIfExists:            create,
-		MaxOpenFiles:             64, // Fail if the database exists and create is true
+		Cache:                    pebble.NewCache(64 * 1024 * 1024), // 64 MB
+		ErrorIfExists:            create,                            // Fail if the database exists and create is true
+		MaxOpenFiles:             64,
 		MaxConcurrentCompactions: runtime.NumCPU,
 		Levels: []pebble.LevelOptions{
 			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
@@ -26,25 +32,20 @@ func NewDBEngine(create bool, dbPath string) (engine.Engine, error) {
 	}
 	opts.Experimental.ReadSamplingMultiplier = -1
 	dbEngine, err := pebble.Open(dbPath, opts)
-
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &DB{DB: dbEngine}, nil
+
+	d.DB = dbEngine
+	return nil
 }
 
-var _ engine.Engine = (*DB)(nil)
-
-type DB struct {
-	*pebble.DB
+func (d *DB) NewTransaction() (engine.Transaction, error) {
+	return NewTransaction(d.DB.NewBatch()), nil
 }
 
-func (d *DB) NewTransaction() engine.Transaction {
-	return NewTransaction(d.DB.NewBatch())
-}
-
-func (d *DB) NewSnapshot() engine.Snapshot {
-	return NewSnapshot(d.DB.NewSnapshot())
+func (d *DB) NewSnapshot() (engine.Snapshot, error) {
+	return NewSnapshot(d.DB.NewSnapshot()), nil
 }
 
 func (d *DB) Close() error {

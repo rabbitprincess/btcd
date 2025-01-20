@@ -1,5 +1,49 @@
 package leveldb
 
-func OpenDB()
+import (
+	"github.com/btcsuite/btcd/database/engine"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/filter"
+	"github.com/syndtr/goleveldb/leveldb/opt"
+)
 
-func reconcileDB()
+var _ engine.Engine = (*DB)(nil)
+
+type DB struct {
+	*leveldb.DB
+}
+
+func (d *DB) Init(create bool, dbPath string) error {
+	opts := opt.Options{
+		ErrorIfExist: create,
+		Strict:       opt.DefaultStrict,
+		Compression:  opt.NoCompression,
+		Filter:       filter.NewBloomFilter(10),
+	}
+	ldb, err := leveldb.OpenFile(dbPath, &opts)
+	if err != nil {
+		return err
+	}
+	d.DB = ldb
+	return nil
+}
+
+func (d *DB) NewTransaction() (engine.Transaction, error) {
+	tx, err := d.DB.OpenTransaction()
+	if err != nil {
+		return nil, err
+	}
+	return NewTransaction(tx), nil
+}
+
+func (d *DB) NewSnapshot() (engine.Snapshot, error) {
+	snapshot, err := d.DB.GetSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	return NewSnapshot(snapshot), nil
+}
+
+func (d *DB) Close() error {
+	return d.DB.Close()
+}

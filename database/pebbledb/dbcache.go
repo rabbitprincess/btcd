@@ -398,7 +398,10 @@ type dbCache struct {
 //
 // The snapshot must be released after use by calling Release.
 func (c *dbCache) Snapshot() (*dbCacheSnapshot, error) {
-	dbSnapshot := c.dbEngine.NewSnapshot()
+	dbSnapshot, err := c.dbEngine.NewSnapshot()
+	if err != nil {
+		return nil, err
+	}
 
 	// Since the cached keys to be added and removed use an immutable treap,
 	// a snapshot is simply obtaining the root of the tree under the lock
@@ -420,7 +423,10 @@ func (c *dbCache) Snapshot() (*dbCacheSnapshot, error) {
 // returns a nil error.
 func (c *dbCache) updateDB(fn func(tx engine.Transaction) error) error {
 	// Start a leveldb transaction.
-	tx := c.dbEngine.NewTransaction()
+	tx, err := c.dbEngine.NewTransaction()
+	if err != nil {
+		return err
+	}
 
 	if err := fn(tx); err != nil {
 		return err
