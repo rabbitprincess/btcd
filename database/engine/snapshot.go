@@ -8,3 +8,7 @@ type Snapshot interface {
 
 	Releaser
 }
+
+type Releaser interface {
+	Release()
+}
