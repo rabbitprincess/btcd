@@ -10,11 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/btcsuite/btcd/database"
+	"github.com/btcsuite/btcd/database/engine"
+	"github.com/btcsuite/btcd/database/engine/pebbledb"
 	"github.com/btcsuite/btcd/database/internal/treap"
 	"github.com/cockroachdb/pebble"
-	"github.com/syndtr/goleveldb/leveldb/iterator"
-	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 const (
@@ -41,18 +40,18 @@ const (
 )
 
 // ldbCacheIter wraps a treap iterator to provide the additional functionality
-// needed to satisfy the leveldb database.Iterator interface.
+// needed to satisfy the engine.Iterator interface.
 type ldbCacheIter struct {
 	*treap.Iterator
 }
 
-// Enforce ldbCacheIterator implements the leveldb database.Iterator interface.
-var _ database.Iterator = (*ldbCacheIter)(nil)
+// Enforce ldbCacheIterator implements the engine.Iterator interface.
+var _ engine.Iterator = (*ldbCacheIter)(nil)
 
 // Error is only provided to satisfy the iterator interface as there are no
 // errors for this memory-only structure.
 //
-// This is part of the leveldb database.Iterator interface implementation.
+// This is part of the engine.Iterator interface implementation.
 func (iter *ldbCacheIter) Error() error {
 	return nil
 }
@@ -60,20 +59,20 @@ func (iter *ldbCacheIter) Error() error {
 // SetReleaser is only provided to satisfy the iterator interface as there is no
 // need to override it.
 //
-// This is part of the leveldb database.Iterator interface implementation.
-func (iter *ldbCacheIter) SetReleaser(releaser util.Releaser) {
+// This is part of the engine.Iterator interface implementation.
+func (iter *ldbCacheIter) SetReleaser(releaser engine.Releaser) {
 }
 
 // Release is only provided to satisfy the iterator interface.
 //
-// This is part of the leveldb database.Iterator interface implementation.
+// This is part of the engine.Iterator interface implementation.
 func (iter *ldbCacheIter) Release() {
 }
 
 // newLdbCacheIter creates a new treap iterator for the given slice against the
 // pending keys for the passed cache snapshot and returns it wrapped in an
 // ldbCacheIter so it can be used as a leveldb iterator.
-func newLdbCacheIter(snap *dbCacheSnapshot, slice *util.Range) *ldbCacheIter {
+func newLdbCacheIter(snap *dbCacheSnapshot, slice *engine.Range) *ldbCacheIter {
 	iter := snap.pendingKeys.Iterator(slice.Start, slice.Limit)
 	return &ldbCacheIter{Iterator: iter}
 }
@@ -82,14 +81,14 @@ func newLdbCacheIter(snap *dbCacheSnapshot, slice *util.Range) *ldbCacheIter {
 // cache and underlying database.
 type dbCacheIterator struct {
 	cacheSnapshot *dbCacheSnapshot
-	dbIter        *pebble.Iterator
-	cacheIter     iterator.Iterator
-	currentIter   database.Iterator
+	dbIter        engine.Iterator
+	cacheIter     engine.Iterator
+	currentIter   engine.Iterator
 	released      bool
 }
 
-// Enforce dbCacheIterator implements the leveldb database.Iterator interface.
-var _ database.Iterator = (*dbCacheIterator)(nil)
+// Enforce dbCacheIterator implements the engine.Iterator interface.
+var _ engine.Iterator = (*dbCacheIterator)(nil)
 
 // skipPendingUpdates skips any keys at the current database iterator position
 // that are being updated by the cache.  The forwards flag indicates the
@@ -158,7 +157,7 @@ func (iter *dbCacheIterator) chooseIterator(forwards bool) bool {
 // First positions the iterator at the first key/value pair and returns whether
 // or not the pair exists.
 //
-// This is part of the leveldb database.Iterator interface implementation.
+// This is part of the engine.Iterator interface implementation.
 func (iter *dbCacheIterator) First() bool {
 	// Seek to the first key in both the database and cache iterators and
 	// choose the iterator that is both valid and has the smaller key.
@@ -170,7 +169,7 @@ func (iter *dbCacheIterator) First() bool {
 // Last positions the iterator at the last key/value pair and returns whether or
 // not the pair exists.
 //
-// This is part of the leveldb database.Iterator interface implementation.
+// This is part of the engine.Iterator interface implementation.
 func (iter *dbCacheIterator) Last() bool {
 	// Seek to the last key in both the database and cache iterators and
 	// choose the iterator that is both valid and has the larger key.
@@ -182,7 +181,7 @@ func (iter *dbCacheIterator) Last() bool {
 // Next moves the iterator one key/value pair forward and returns whether or not
 // the pair exists.
 //
-// This is part of the leveldb database.Iterator interface implementation.
+// This is part of the engine.Iterator interface implementation.
 func (iter *dbCacheIterator) Next() bool {
 	// Nothing to return if cursor is exhausted.
 	if iter.currentIter == nil {
@@ -198,7 +197,7 @@ func (iter *dbCacheIterator) Next() bool {
 // Prev moves the iterator one key/value pair backward and returns whether or
 // not the pair exists.
 //
-// This is part of the leveldb database.Iterator interface implementation.
+// This is part of the engine.Iterator interface implementation.
 func (iter *dbCacheIterator) Prev() bool {
 	// Nothing to return if cursor is exhausted.
 	if iter.currentIter == nil {
@@ -214,11 +213,11 @@ func (iter *dbCacheIterator) Prev() bool {
 // Seek positions the iterator at the first key/value pair that is greater than
 // or equal to the passed seek key.  Returns false if no suitable key was found.
 //
-// This is part of the leveldb database.Iterator interface implementation.
+// This is part of the engine.Iterator interface implementation.
 func (iter *dbCacheIterator) Seek(key []byte) bool {
 	// Seek to the provided key in both the database and cache iterators
 	// then choose the iterator that is both valid and has the larger key.
-	iter.dbIter.SeekGE(key)
+	iter.dbIter.Seek(key)
 	iter.cacheIter.Seek(key)
 	return iter.chooseIterator(true)
 }
@@ -226,14 +225,14 @@ func (iter *dbCacheIterator) Seek(key []byte) bool {
 // Valid indicates whether the iterator is positioned at a valid key/value pair.
 // It will be considered invalid when the iterator is newly created or exhausted.
 //
-// This is part of the leveldb database.Iterator interface implementation.
+// This is part of the engine.Iterator interface implementation.
 func (iter *dbCacheIterator) Valid() bool {
 	return iter.currentIter != nil
 }
 
 // Key returns the current key the iterator is pointing to.
 //
-// This is part of the leveldb database.Iterator interface implementation.
+// This is part of the engine.Iterator interface implementation.
 func (iter *dbCacheIterator) Key() []byte {
 	// Nothing to return if iterator is exhausted.
 	if iter.currentIter == nil {
@@ -245,7 +244,7 @@ func (iter *dbCacheIterator) Key() []byte {
 
 // Value returns the current value the iterator is pointing to.
 //
-// This is part of the leveldb database.Iterator interface implementation.
+// This is part of the engine.Iterator interface implementation.
 func (iter *dbCacheIterator) Value() []byte {
 	// Nothing to return if iterator is exhausted.
 	if iter.currentIter == nil {
@@ -258,17 +257,17 @@ func (iter *dbCacheIterator) Value() []byte {
 // SetReleaser is only provided to satisfy the iterator interface as there is no
 // need to override it.
 //
-// This is part of the leveldb database.Iterator interface implementation.
-func (iter *dbCacheIterator) SetReleaser(releaser util.Releaser) {
+// This is part of the engine.Iterator interface implementation.
+func (iter *dbCacheIterator) SetReleaser(releaser engine.Releaser) {
 }
 
 // Release releases the iterator by removing the underlying treap iterator from
 // the list of active iterators against the pending keys treap.
 //
-// This is part of the leveldb database.Iterator interface implementation.
+// This is part of the engine.Iterator interface implementation.
 func (iter *dbCacheIterator) Release() {
 	if !iter.released {
-		iter.dbIter.Close()
+		iter.dbIter.Release()
 		iter.cacheIter.Release()
 		iter.currentIter = nil
 		iter.released = true
@@ -278,7 +277,7 @@ func (iter *dbCacheIterator) Release() {
 // Error is only provided to satisfy the iterator interface as there are no
 // errors for this memory-only structure.
 //
-// This is part of the leveldb database.Iterator interface implementation.
+// This is part of the engine.Iterator interface implementation.
 func (iter *dbCacheIterator) Error() error {
 	return nil
 }
@@ -286,7 +285,7 @@ func (iter *dbCacheIterator) Error() error {
 // dbCacheSnapshot defines a snapshot of the database cache and underlying
 // database at a particular point in time.
 type dbCacheSnapshot struct {
-	dbSnapshot    *pebble.Snapshot
+	dbSnapshot    engine.Snapshot
 	pendingKeys   *treap.Immutable
 	pendingRemove *treap.Immutable
 }
@@ -302,11 +301,8 @@ func (snap *dbCacheSnapshot) Has(key []byte) bool {
 	}
 
 	// Consult the database.
-	_, closer, err := snap.dbSnapshot.Get(key)
-	if closer != nil {
-		closer.Close()
-	}
-	return err != pebble.ErrNotFound
+	hasKey, _ := snap.dbSnapshot.Has(key)
+	return hasKey
 }
 
 // Get returns the value for the passed key.  The function will return nil when
@@ -321,20 +317,16 @@ func (snap *dbCacheSnapshot) Get(key []byte) []byte {
 	}
 
 	// Consult the database.
-	value, closer, err := snap.dbSnapshot.Get(key)
+	value, err := snap.dbSnapshot.Get(key)
 	if err != nil {
 		return nil
 	}
-	if closer != nil {
-		closer.Close()
-	}
-
 	return value
 }
 
 // Release releases the snapshot.
 func (snap *dbCacheSnapshot) Release() {
-	snap.dbSnapshot.Close()
+	snap.dbSnapshot.Release()
 	snap.pendingKeys = nil
 	snap.pendingRemove = nil
 }
@@ -346,11 +338,8 @@ func (snap *dbCacheSnapshot) Release() {
 // The slice parameter allows the iterator to be limited to a range of keys.
 // The start key is inclusive and the limit key is exclusive.  Either or both
 // can be nil if the functionality is not desired.
-func (snap *dbCacheSnapshot) NewIterator(slice *util.Range) *dbCacheIterator {
-	dbIter, err := snap.dbSnapshot.NewIter(&pebble.IterOptions{
-		LowerBound: slice.Start,
-		UpperBound: slice.Limit,
-	})
+func (snap *dbCacheSnapshot) NewIterator(slice *engine.Range) *dbCacheIterator {
+	dbIter, err := snap.dbSnapshot.NewIterator(slice.Start, slice.Limit)
 	if err != nil {
 		return nil
 	}
@@ -411,7 +400,7 @@ type dbCache struct {
 //
 // The snapshot must be released after use by calling Release.
 func (c *dbCache) Snapshot() (*dbCacheSnapshot, error) {
-	dbSnapshot := c.pdb.NewSnapshot()
+	dbSnapshot := pebbledb.NewSnapshot(c.pdb.NewSnapshot())
 
 	// Since the cached keys to be added and removed use an immutable treap,
 	// a snapshot is simply obtaining the root of the tree under the lock

@@ -16,11 +16,9 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/database"
+	"github.com/btcsuite/btcd/database/engine"
 	"github.com/btcsuite/btcd/database/internal/treap"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/syndtr/goleveldb/leveldb/comparer"
-	"github.com/syndtr/goleveldb/leveldb/iterator"
-	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 const (
@@ -163,20 +161,20 @@ func copySlice(slice []byte) []byte {
 }
 
 // cursor is an internal type used to represent a cursor over key/value pairs
-// and nested buckets of a bucket and implements the database.Cursor interface.
+// and nested buckets of a bucket and implements the engine.Cursor interface.
 type cursor struct {
 	bucket      *bucket
-	dbIter      iterator.Iterator
-	pendingIter iterator.Iterator
-	currentIter iterator.Iterator
+	dbIter      engine.Iterator
+	pendingIter engine.Iterator
+	currentIter engine.Iterator
 }
 
-// Enforce cursor implements the database.Cursor interface.
+// Enforce cursor implements the engine.Cursor interface.
 var _ database.Cursor = (*cursor)(nil)
 
 // Bucket returns the bucket the cursor was created for.
 //
-// This function is part of the database.Cursor interface implementation.
+// This function is part of the engine.Cursor interface implementation.
 func (c *cursor) Bucket() database.Bucket {
 	// Ensure transaction state is valid.
 	if err := c.bucket.tx.checkClosed(); err != nil {
@@ -195,7 +193,7 @@ func (c *cursor) Bucket() database.Bucket {
 //   - ErrTxNotWritable if attempted against a read-only transaction
 //   - ErrTxClosed if the transaction has already been closed
 //
-// This function is part of the database.Cursor interface implementation.
+// This function is part of the engine.Cursor interface implementation.
 func (c *cursor) Delete() error {
 	// Ensure transaction state is valid.
 	if err := c.bucket.tx.checkClosed(); err != nil {
@@ -288,7 +286,7 @@ func (c *cursor) chooseIterator(forwards bool) bool {
 // First positions the cursor at the first key/value pair and returns whether or
 // not the pair exists.
 //
-// This function is part of the database.Cursor interface implementation.
+// This function is part of the engine.Cursor interface implementation.
 func (c *cursor) First() bool {
 	// Ensure transaction state is valid.
 	if err := c.bucket.tx.checkClosed(); err != nil {
@@ -305,7 +303,7 @@ func (c *cursor) First() bool {
 // Last positions the cursor at the last key/value pair and returns whether or
 // not the pair exists.
 //
-// This function is part of the database.Cursor interface implementation.
+// This function is part of the engine.Cursor interface implementation.
 func (c *cursor) Last() bool {
 	// Ensure transaction state is valid.
 	if err := c.bucket.tx.checkClosed(); err != nil {
@@ -322,7 +320,7 @@ func (c *cursor) Last() bool {
 // Next moves the cursor one key/value pair forward and returns whether or not
 // the pair exists.
 //
-// This function is part of the database.Cursor interface implementation.
+// This function is part of the engine.Cursor interface implementation.
 func (c *cursor) Next() bool {
 	// Ensure transaction state is valid.
 	if err := c.bucket.tx.checkClosed(); err != nil {
@@ -343,7 +341,7 @@ func (c *cursor) Next() bool {
 // Prev moves the cursor one key/value pair backward and returns whether or not
 // the pair exists.
 //
-// This function is part of the database.Cursor interface implementation.
+// This function is part of the engine.Cursor interface implementation.
 func (c *cursor) Prev() bool {
 	// Ensure transaction state is valid.
 	if err := c.bucket.tx.checkClosed(); err != nil {
@@ -364,7 +362,7 @@ func (c *cursor) Prev() bool {
 // Seek positions the cursor at the first key/value pair that is greater than or
 // equal to the passed seek key.  Returns false if no suitable key was found.
 //
-// This function is part of the database.Cursor interface implementation.
+// This function is part of the engine.Cursor interface implementation.
 func (c *cursor) Seek(seek []byte) bool {
 	// Ensure transaction state is valid.
 	if err := c.bucket.tx.checkClosed(); err != nil {
@@ -392,7 +390,7 @@ func (c *cursor) rawKey() []byte {
 
 // Key returns the current key the cursor is pointing to.
 //
-// This function is part of the database.Cursor interface implementation.
+// This function is part of the engine.Cursor interface implementation.
 func (c *cursor) Key() []byte {
 	// Ensure transaction state is valid.
 	if err := c.bucket.tx.checkClosed(); err != nil {
@@ -435,7 +433,7 @@ func (c *cursor) rawValue() []byte {
 // Value returns the current value the cursor is pointing to.  This will be nil
 // for nested buckets.
 //
-// This function is part of the database.Cursor interface implementation.
+// This function is part of the engine.Cursor interface implementation.
 func (c *cursor) Value() []byte {
 	// Ensure transaction state is valid.
 	if err := c.bucket.tx.checkClosed(); err != nil {
@@ -486,10 +484,10 @@ func cursorFinalizer(c *cursor) {
 // NOTE: The caller is responsible for calling the cursorFinalizer function on
 // the returned cursor.
 func newCursor(b *bucket, bucketID []byte, cursorTyp cursorType) *cursor {
-	var dbIter, pendingIter iterator.Iterator
+	var dbIter, pendingIter engine.Iterator
 	switch cursorTyp {
 	case ctKeys:
-		keyRange := util.BytesPrefix(bucketID)
+		keyRange := engine.BytesPrefix(bucketID)
 		dbIter = b.tx.snapshot.NewIterator(keyRange)
 		pendingKeyIter := newLdbTreapIter(b.tx, keyRange)
 		pendingIter = pendingKeyIter
@@ -504,7 +502,7 @@ func newCursor(b *bucket, bucketID []byte, cursorTyp cursorType) *cursor {
 		prefix := make([]byte, len(bucketIndexPrefix)+4)
 		copy(prefix, bucketIndexPrefix)
 		copy(prefix[len(bucketIndexPrefix):], bucketID)
-		bucketRange := util.BytesPrefix(prefix)
+		bucketRange := engine.BytesPrefix(prefix)
 
 		dbIter = b.tx.snapshot.NewIterator(bucketRange)
 		pendingBucketIter := newLdbTreapIter(b.tx, bucketRange)
@@ -518,26 +516,26 @@ func newCursor(b *bucket, bucketID []byte, cursorTyp cursorType) *cursor {
 		prefix := make([]byte, len(bucketIndexPrefix)+4)
 		copy(prefix, bucketIndexPrefix)
 		copy(prefix[len(bucketIndexPrefix):], bucketID)
-		bucketRange := util.BytesPrefix(prefix)
-		keyRange := util.BytesPrefix(bucketID)
+		bucketRange := engine.BytesPrefix(prefix)
+		keyRange := engine.BytesPrefix(bucketID)
 
 		// Since both keys and buckets are needed from the database,
 		// create an individual iterator for each prefix and then create
 		// a merged iterator from them.
 		dbKeyIter := b.tx.snapshot.NewIterator(keyRange)
 		dbBucketIter := b.tx.snapshot.NewIterator(bucketRange)
-		iters := []iterator.Iterator{dbKeyIter, dbBucketIter}
-		dbIter = iterator.NewMergedIterator(iters,
-			comparer.DefaultComparer, true)
+		iters := []engine.Iterator{dbKeyIter, dbBucketIter}
+		dbIter = engine.NewMergedIterator(iters,
+			engine.DefaultComparer, true)
 
 		// Since both keys and buckets are needed from the pending keys,
 		// create an individual iterator for each prefix and then create
 		// a merged iterator from them.
 		pendingKeyIter := newLdbTreapIter(b.tx, keyRange)
 		pendingBucketIter := newLdbTreapIter(b.tx, bucketRange)
-		iters = []iterator.Iterator{pendingKeyIter, pendingBucketIter}
-		pendingIter = iterator.NewMergedIterator(iters,
-			comparer.DefaultComparer, true)
+		iters = []engine.Iterator{pendingKeyIter, pendingBucketIter}
+		pendingIter = engine.NewMergedIterator(iters,
+			engine.DefaultComparer, true)
 	}
 
 	// Create the cursor using the iterators.
