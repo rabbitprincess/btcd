@@ -158,7 +158,7 @@ func convertErr(desc string, ldbErr error) database.Error {
 }
 
 // copySlice returns a copy of the passed slice.  This is mostly used to copy
-// leveldb iterator keys and values since they are only valid until the iterator
+// db iterator keys and values since they are only valid until the iterator
 // is moved instead of during the entirety of the transaction.
 func copySlice(slice []byte) []byte {
 	ret := make([]byte, len(slice))
@@ -2053,7 +2053,7 @@ func (db *db) Close() error {
 	// cache and clear all state without the individual locks.
 
 	// Close the database cache which will flush any existing entries to
-	// disk and close the underlying leveldb database.  Any error is saved
+	// disk and close the underlying database.  Any error is saved
 	// and returned at the end after the remaining cleanup since the
 	// database will be marked closed even if this fails given there is no
 	// good way for the caller to recover from a failure here anyways.

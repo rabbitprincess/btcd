@@ -69,7 +69,7 @@ func (iter *ldbCacheIter) Release() {
 
 // newLdbCacheIter creates a new treap iterator for the given slice against the
 // pending keys for the passed cache snapshot and returns it wrapped in an
-// ldbCacheIter so it can be used as a leveldb iterator.
+// ldbCacheIter so it can be used as a db iterator.
 func newLdbCacheIter(snap *dbCacheSnapshot, slice *engine.Range) *ldbCacheIter {
 	iter := snap.pendingKeys.Iterator(slice.Start, slice.Limit)
 	return &ldbCacheIter{Iterator: iter}
@@ -417,13 +417,13 @@ func (c *dbCache) Snapshot() (*dbCacheSnapshot, error) {
 	return cacheSnapshot, nil
 }
 
-// updateDB invokes the passed function in the context of a managed leveldb
+// updateDB invokes the passed function in the context of a managed db
 // transaction.  Any errors returned from the user-supplied function will cause
 // the transaction to be rolled back and are returned from this function.
 // Otherwise, the transaction is committed when the user-supplied function
 // returns a nil error.
 func (c *dbCache) updateDB(fn func(tx engine.Transaction) error) error {
-	// Start a leveldb transaction.
+	// Start a db transaction.
 	tx, err := c.dbEngine.NewTransaction()
 	if err != nil {
 		return convertErr("failed to open ldb transaction", err)
@@ -434,7 +434,7 @@ func (c *dbCache) updateDB(fn func(tx engine.Transaction) error) error {
 		return err
 	}
 
-	// Commit the leveldb transaction and convert any errors as needed.
+	// Commit the db transaction and convert any errors as needed.
 	if err := tx.Commit(); err != nil {
 		return convertErr("failed to commit db transaction", err)
 	}
@@ -452,7 +452,7 @@ type TreapForEacher interface {
 // commitTreaps atomically commits all of the passed pending add/update/remove
 // updates to the underlying database.
 func (c *dbCache) commitTreaps(pendingKeys, pendingRemove TreapForEacher) error {
-	// Perform all leveldb updates using an atomic transaction.
+	// Perform all db updates using an atomic transaction.
 	return c.updateDB(func(tx engine.Transaction) error {
 		var innerErr error
 		pendingKeys.ForEach(func(k, v []byte) bool {
@@ -511,7 +511,7 @@ func (c *dbCache) flush() error {
 		return nil
 	}
 
-	// Perform all leveldb updates using an atomic transaction.
+	// Perform all db updates using an atomic transaction.
 	if err := c.commitTreaps(cachedKeys, cachedRemove); err != nil {
 		return err
 	}
@@ -574,7 +574,7 @@ func (c *dbCache) commitTx(tx *transaction) error {
 			return err
 		}
 
-		// Perform all leveldb updates using an atomic transaction.
+		// Perform all db updates using an atomic transaction.
 		err := c.commitTreaps(tx.pendingKeys, tx.pendingRemove)
 		if err != nil {
 			return err
@@ -623,7 +623,7 @@ func (c *dbCache) commitTx(tx *transaction) error {
 }
 
 // Close cleanly shuts down the database cache by syncing all data and closing
-// the underlying leveldb database.
+// the underlying database.
 //
 // This function MUST be called with the database write lock held.
 func (c *dbCache) Close() error {
@@ -636,9 +636,9 @@ func (c *dbCache) Close() error {
 		return err
 	}
 
-	// Close the underlying leveldb database.
+	// Close the underlying database.
 	if err := c.dbEngine.Close(); err != nil {
-		str := "failed to close underlying leveldb database"
+		str := "failed to close underlying database"
 		return convertErr(str, err)
 	}
 
@@ -646,7 +646,7 @@ func (c *dbCache) Close() error {
 }
 
 // newDbCache returns a new database cache instance backed by the provided
-// leveldb instance.  The cache will be flushed to leveldb when the max size
+// db instance. The cache will be flushed to db when the max size
 // exceeds the provided value or it has been longer than the provided interval
 // since the last flush.
 func newDbCache(dbEngine engine.Engine, store *blockStore, maxSize uint64, flushIntervalSecs uint32) *dbCache {

@@ -21,7 +21,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/database"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/syndtr/goleveldb/leveldb"
+	ldb "github.com/syndtr/goleveldb/leveldb"
 	ldberrors "github.com/syndtr/goleveldb/leveldb/errors"
 )
 
@@ -135,7 +135,7 @@ type testContext struct {
 	blocks       []*btcutil.Block
 }
 
-// TestConvertErr ensures the leveldb error to database error conversion works
+// TestConvertErr ensures the db error to database error conversion works
 // as expected.
 func TestConvertErr(t *testing.T) {
 	t.Parallel()
@@ -145,9 +145,9 @@ func TestConvertErr(t *testing.T) {
 		wantErrCode database.ErrorCode
 	}{
 		{&ldberrors.ErrCorrupted{}, database.ErrCorruption},
-		{leveldb.ErrClosed, database.ErrDbNotOpen},
-		{leveldb.ErrSnapshotReleased, database.ErrTxClosed},
-		{leveldb.ErrIterReleased, database.ErrTxClosed},
+		{ldb.ErrClosed, database.ErrDbNotOpen},
+		{ldb.ErrSnapshotReleased, database.ErrTxClosed},
+		{ldb.ErrIterReleased, database.ErrTxClosed},
 	}
 
 	for i, test := range tests {
