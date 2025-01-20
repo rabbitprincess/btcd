@@ -20,6 +20,10 @@ func (t *Transaction) Delete(key []byte) error {
 	return t.Transaction.Delete(key, nil)
 }
 
+func (t *Transaction) Discard() {
+	t.Transaction.Discard()
+}
+
 func (t *Transaction) Commit() error {
 	return t.Transaction.Commit()
 }

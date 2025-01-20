@@ -12,4 +12,5 @@ type Transaction interface {
 	Put(key, value []byte) error
 	Delete(key []byte) error
 	Commit() error
+	Discard()
 }

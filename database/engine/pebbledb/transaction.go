@@ -18,6 +18,10 @@ func (t *Transaction) Delete(key []byte) error {
 	return t.Batch.Delete(key, pebble.NoSync)
 }
 
+func (t *Transaction) Discard() {
+	t.Batch.Close()
+}
+
 func (t *Transaction) Commit() error {
 	return t.Batch.Commit(pebble.Sync)
 }
