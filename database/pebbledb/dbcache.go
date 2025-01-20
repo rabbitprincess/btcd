@@ -11,9 +11,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/database/engine"
-	"github.com/btcsuite/btcd/database/engine/pebbledb"
 	"github.com/btcsuite/btcd/database/internal/treap"
-	"github.com/cockroachdb/pebble"
 )
 
 const (
@@ -358,8 +356,8 @@ func (snap *dbCacheSnapshot) NewIterator(slice *engine.Range) *dbCacheIterator {
 // can commit transactions at will without incurring large performance hits due
 // to frequent disk syncs.
 type dbCache struct {
-	// pdb is the underlying pebbledb DB for metadata.
-	pdb *pebble.DB
+	// dbEngine is the underlying DB for metadata.
+	dbEngine engine.Engine
 
 	// store is used to sync blocks to flat files.
 	store *blockStore
@@ -400,7 +398,7 @@ type dbCache struct {
 //
 // The snapshot must be released after use by calling Release.
 func (c *dbCache) Snapshot() (*dbCacheSnapshot, error) {
-	dbSnapshot := pebbledb.NewSnapshot(c.pdb.NewSnapshot())
+	dbSnapshot := c.dbEngine.NewSnapshot()
 
 	// Since the cached keys to be added and removed use an immutable treap,
 	// a snapshot is simply obtaining the root of the tree under the lock
@@ -420,16 +418,16 @@ func (c *dbCache) Snapshot() (*dbCacheSnapshot, error) {
 // the transaction to be rolled back and are returned from this function.
 // Otherwise, the transaction is committed when the user-supplied function
 // returns a nil error.
-func (c *dbCache) updateDB(fn func(ldbTx *pebble.Batch) error) error {
+func (c *dbCache) updateDB(fn func(tx engine.Transaction) error) error {
 	// Start a leveldb transaction.
-	batch := c.pdb.NewBatch()
+	tx := c.dbEngine.NewTransaction()
 
-	if err := fn(batch); err != nil {
+	if err := fn(tx); err != nil {
 		return err
 	}
 
 	// Commit the leveldb transaction and convert any errors as needed.
-	if err := batch.Commit(pebble.Sync); err != nil {
+	if err := tx.Commit(); err != nil {
 		return convertErr("failed to commit pebbledb transaction", err)
 	}
 	return nil
@@ -447,10 +445,10 @@ type TreapForEacher interface {
 // updates to the underlying database.
 func (c *dbCache) commitTreaps(pendingKeys, pendingRemove TreapForEacher) error {
 	// Perform all leveldb updates using an atomic transaction.
-	return c.updateDB(func(batch *pebble.Batch) error {
+	return c.updateDB(func(tx engine.Transaction) error {
 		var innerErr error
 		pendingKeys.ForEach(func(k, v []byte) bool {
-			if dbErr := batch.Set(k, v, nil); dbErr != nil {
+			if dbErr := tx.Put(k, v); dbErr != nil {
 				str := fmt.Sprintf("failed to put key %q to "+
 					"ldb transaction", k)
 				innerErr = convertErr(str, dbErr)
@@ -463,7 +461,7 @@ func (c *dbCache) commitTreaps(pendingKeys, pendingRemove TreapForEacher) error 
 		}
 
 		pendingRemove.ForEach(func(k, v []byte) bool {
-			if dbErr := batch.Delete(k, nil); dbErr != nil {
+			if dbErr := tx.Delete(k); dbErr != nil {
 				str := fmt.Sprintf("failed to delete "+
 					"key %q from ldb transaction",
 					k)
@@ -626,12 +624,12 @@ func (c *dbCache) Close() error {
 		// Even if there is an error while flushing, attempt to close
 		// the underlying database.  The error is ignored since it would
 		// mask the flush error.
-		_ = c.pdb.Close()
+		_ = c.dbEngine.Close()
 		return err
 	}
 
 	// Close the underlying leveldb database.
-	if err := c.pdb.Close(); err != nil {
+	if err := c.dbEngine.Close(); err != nil {
 		str := "failed to close underlying leveldb database"
 		return convertErr(str, err)
 	}
@@ -643,9 +641,9 @@ func (c *dbCache) Close() error {
 // leveldb instance.  The cache will be flushed to leveldb when the max size
 // exceeds the provided value or it has been longer than the provided interval
 // since the last flush.
-func newDbCache(pdb *pebble.DB, store *blockStore, maxSize uint64, flushIntervalSecs uint32) *dbCache {
+func newDbCache(dbEngine engine.Engine, store *blockStore, maxSize uint64, flushIntervalSecs uint32) *dbCache {
 	return &dbCache{
-		pdb:           pdb,
+		dbEngine:      dbEngine,
 		store:         store,
 		maxSize:       maxSize,
 		flushInterval: time.Second * time.Duration(flushIntervalSecs),

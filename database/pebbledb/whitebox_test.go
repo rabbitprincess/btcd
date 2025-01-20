@@ -213,7 +213,7 @@ func TestCornerCases(t *testing.T) {
 	_ = os.RemoveAll(filePath)
 
 	// Close the underlying leveldb database out from under the database.
-	pdb := idb.(*db).cache.pdb
+	pdb := idb.(*db).cache.dbEngine
 	pdb.Close()
 
 	// Ensure initialization errors in the underlying database work as

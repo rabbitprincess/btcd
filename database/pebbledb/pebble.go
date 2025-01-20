@@ -10,8 +10,9 @@ import (
 	"path/filepath"
 
 	"github.com/btcsuite/btcd/database"
+	"github.com/btcsuite/btcd/database/engine"
+	"github.com/btcsuite/btcd/database/engine/pebbledb"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/cockroachdb/pebble"
 )
 
 // openDB opens the database at the provided path.  database.ErrDbDoesNotExist
@@ -28,16 +29,13 @@ func openDB(dbPath string, network wire.BitcoinNet, create bool) (database.DB, e
 	// Ensure the full path to the database exists.
 	if !dbExists {
 		// The error can be ignored here since the call to
-		// pebble.Open will fail if the directory couldn't be
+		// db Open will fail if the directory couldn't be
 		// created.
 		_ = os.MkdirAll(dbPath, 0700)
 	}
 
 	// Open the metadata database (will create it if needed).
-	opts := &pebble.Options{
-		ErrorIfExists: create, // Fail if the database exists and create is true
-	}
-	ldb, err := pebble.Open(metadataDbPath, opts)
+	dbEngine, err := pebbledb.NewDBEngine(create, metadataDbPath)
 	if err != nil {
 		return nil, convertErr(err.Error(), err)
 	}
@@ -51,7 +49,7 @@ func openDB(dbPath string, network wire.BitcoinNet, create bool) (database.DB, e
 	if err != nil {
 		return nil, convertErr(err.Error(), err)
 	}
-	cache := newDbCache(ldb, store, defaultCacheSize, defaultFlushSecs)
+	cache := newDbCache(dbEngine, store, defaultCacheSize, defaultFlushSecs)
 	pdb := &db{store: store, cache: cache}
 
 	// Perform any reconciliation needed between the block and metadata as
@@ -61,14 +59,13 @@ func openDB(dbPath string, network wire.BitcoinNet, create bool) (database.DB, e
 
 // initDB creates the initial buckets and values used by the package. This is
 // mainly in a separate function for testing purposes.
-func initDB(db *pebble.DB) error {
+func initDB(engine engine.Engine) error {
 	// The starting block file write cursor location is file num 0, offset 0.
-	batch := db.NewBatch()
-	defer batch.Close()
+	tx := engine.NewTransaction()
 
 	// Insert the starting block file write cursor location.
-	err := batch.Set(bucketizedKey(metadataBucketID, writeLocKeyName),
-		serializeWriteRow(0, 0), pebble.NoSync)
+	err := tx.Put(bucketizedKey(metadataBucketID, writeLocKeyName),
+		serializeWriteRow(0, 0))
 	if err != nil {
 		return fmt.Errorf("failed to set writeLocKeyName: %w", err)
 	}
@@ -79,19 +76,19 @@ func initDB(db *pebble.DB) error {
 	// there is no need to store the bucket index data for the metadata
 	// bucket in the database. However, the first bucket ID to use does
 	// need to account for it to ensure there are no key collisions.
-	err = batch.Set(bucketIndexKey(metadataBucketID, blockIdxBucketName),
-		blockIdxBucketID[:], pebble.NoSync)
+	err = tx.Put(bucketIndexKey(metadataBucketID, blockIdxBucketName),
+		blockIdxBucketID[:])
 	if err != nil {
 		return fmt.Errorf("failed to set blockIdxBucketName: %w", err)
 	}
 
-	err = batch.Set(curBucketIDKeyName, blockIdxBucketID[:], pebble.NoSync)
+	err = tx.Put(curBucketIDKeyName, blockIdxBucketID[:])
 	if err != nil {
 		return fmt.Errorf("failed to set curBucketIDKeyName: %w", err)
 	}
 
 	// Apply the batch write.
-	if err := batch.Commit(pebble.Sync); err != nil {
+	if err := tx.Commit(); err != nil {
 		str := fmt.Sprintf("failed to initialize metadata database: %v", err)
 		return convertErr(str, err)
 	}
