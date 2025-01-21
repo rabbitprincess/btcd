@@ -2152,7 +2152,7 @@ func openDB(dbType string, dbPath string, network wire.BitcoinNet, create bool) 
 	// Create the block store which includes scanning the existing flat
 	// block files to find what the current write cursor position is
 	// according to the data that is actually on disk.  Also create the
-	// database cache which wraps the underlying DB database to provide
+	// database cache which wraps the underlying database to provide
 	// write caching.
 	store, err := newBlockStore(dbPath, network)
 	if err != nil {
