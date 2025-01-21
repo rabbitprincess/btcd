@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	DefaultCache   = 16
-	DefaultHandles = 64
+	DefaultCache   = 64
+	DefaultHandles = 16
 )
 
 func NewDB(dbPath string, create bool, cache, handles int) (engine.Engine, error) {
