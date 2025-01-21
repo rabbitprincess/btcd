@@ -1,8 +1,6 @@
 package engine
 
 type Engine interface {
-	Init(create bool, dbPath string) error
-
 	Transaction() (Transaction, error)
 	Snapshot() (Snapshot, error)
 	Close() error

@@ -8,17 +8,29 @@ import (
 	"github.com/cockroachdb/pebble/bloom"
 )
 
+const (
+	DefaultCache   = 16
+	DefaultHandles = 64
+)
+
 var _ engine.Engine = (*DB)(nil)
 
 type DB struct {
 	*pebble.DB
 }
 
-func (d *DB) Init(create bool, dbPath string) error {
+func (d *DB) Init(create bool, dbPath string, cache, handles int) error {
+	if cache <= 0 {
+		cache = DefaultCache
+	}
+	if handles <= 0 {
+		handles = DefaultHandles
+	}
+
 	opts := &pebble.Options{
-		Cache:                    pebble.NewCache(64 * 1024 * 1024), // 64 MB
-		ErrorIfExists:            create,                            // Fail if the database exists and create is true
-		MaxOpenFiles:             64,
+		Cache:                    pebble.NewCache(int64(cache * 1024 * 1024)), // cache MB
+		ErrorIfExists:            create,                                      // Fail if the database exists and create is true
+		MaxOpenFiles:             handles,
 		MaxConcurrentCompactions: runtime.NumCPU,
 		Levels: []pebble.LevelOptions{
 			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
