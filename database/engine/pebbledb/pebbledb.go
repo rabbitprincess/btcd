@@ -8,6 +8,11 @@ import (
 	"github.com/cockroachdb/pebble/bloom"
 )
 
+const (
+	DefaultCache   = 16
+	DefaultHandles = 64
+)
+
 func NewDB(create bool, dbPath string, cache, handles int) (engine.Engine, error) {
 	if cache <= 0 {
 		cache = DefaultCache
@@ -39,11 +44,6 @@ func NewDB(create bool, dbPath string, cache, handles int) (engine.Engine, error
 
 	return &DB{DB: dbEngine}, nil
 }
-
-const (
-	DefaultCache   = 16
-	DefaultHandles = 64
-)
 
 type DB struct {
 	*pebble.DB
