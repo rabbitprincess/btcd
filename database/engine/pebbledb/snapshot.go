@@ -5,11 +5,9 @@ import (
 	"github.com/cockroachdb/pebble"
 )
 
-func NewSnapshot(snapshot *pebble.Snapshot) *Snapshot {
+func NewSnapshot(snapshot *pebble.Snapshot) engine.Snapshot {
 	return &Snapshot{Snapshot: snapshot}
 }
-
-var _ engine.Snapshot = (*Snapshot)(nil)
 
 type Snapshot struct {
 	*pebble.Snapshot

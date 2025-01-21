@@ -2136,21 +2136,17 @@ func openDB(dbType string, dbPath string, network wire.BitcoinNet, create bool) 
 
 	// Open the metadata database (will create it if needed).
 	var dbEngine engine.Engine
+	var err error
 	switch dbType {
 	case PebbleDB:
-		pebble := new(pebbledb.DB)
-		if err := pebble.Init(create, metadataDbPath, 0, 0); err != nil {
-			return nil, convertErr(err.Error(), err)
-		}
-		dbEngine = pebble
+		dbEngine, err = pebbledb.NewDB(create, metadataDbPath, 0, 0)
 	case LevelDB:
-		level := new(leveldb.DB)
-		if err := level.Init(create, metadataDbPath); err != nil {
-			return nil, convertErr(err.Error(), err)
-		}
-		dbEngine = level
+		dbEngine, err = leveldb.NewDB(create, metadataDbPath)
 	default:
-		return nil, fmt.Errorf("driver %q is not registered", dbType)
+		err = fmt.Errorf("driver %q is not registered", dbType)
+	}
+	if err != nil {
+		return nil, convertErr(err.Error(), err)
 	}
 
 	// Create the block store which includes scanning the existing flat

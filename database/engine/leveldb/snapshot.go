@@ -6,11 +6,9 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
-func NewSnapshot(snapshot *leveldb.Snapshot) *Snapshot {
+func NewSnapshot(snapshot *leveldb.Snapshot) engine.Snapshot {
 	return &Snapshot{Snapshot: snapshot}
 }
-
-var _ engine.Snapshot = (*Snapshot)(nil)
 
 type Snapshot struct {
 	*leveldb.Snapshot

@@ -5,11 +5,9 @@ import (
 	"github.com/cockroachdb/pebble"
 )
 
-func NewTransaction(batch *pebble.Batch) *Transaction {
+func NewTransaction(batch *pebble.Batch) engine.Transaction {
 	return &Transaction{Batch: batch}
 }
-
-var _ engine.Transaction = (*Transaction)(nil)
 
 type Transaction struct {
 	*pebble.Batch

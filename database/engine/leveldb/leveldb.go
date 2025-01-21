@@ -7,13 +7,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-var _ engine.Engine = (*DB)(nil)
-
-type DB struct {
-	*leveldb.DB
-}
-
-func (d *DB) Init(create bool, dbPath string) error {
+func NewDB(create bool, dbPath string) (engine.Engine, error) {
 	opts := opt.Options{
 		ErrorIfExist: create,
 		Strict:       opt.DefaultStrict,
@@ -22,10 +16,13 @@ func (d *DB) Init(create bool, dbPath string) error {
 	}
 	ldb, err := leveldb.OpenFile(dbPath, &opts)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	d.DB = ldb
-	return nil
+	return &DB{DB: ldb}, nil
+}
+
+type DB struct {
+	*leveldb.DB
 }
 
 func (d *DB) Transaction() (engine.Transaction, error) {

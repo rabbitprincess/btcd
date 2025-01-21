@@ -8,18 +8,7 @@ import (
 	"github.com/cockroachdb/pebble/bloom"
 )
 
-const (
-	DefaultCache   = 16
-	DefaultHandles = 64
-)
-
-var _ engine.Engine = (*DB)(nil)
-
-type DB struct {
-	*pebble.DB
-}
-
-func (d *DB) Init(create bool, dbPath string, cache, handles int) error {
+func NewDB(create bool, dbPath string, cache, handles int) (engine.Engine, error) {
 	if cache <= 0 {
 		cache = DefaultCache
 	}
@@ -45,11 +34,19 @@ func (d *DB) Init(create bool, dbPath string, cache, handles int) error {
 	opts.Experimental.ReadSamplingMultiplier = -1
 	dbEngine, err := pebble.Open(dbPath, opts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	d.DB = dbEngine
-	return nil
+	return &DB{DB: dbEngine}, nil
+}
+
+const (
+	DefaultCache   = 16
+	DefaultHandles = 64
+)
+
+type DB struct {
+	*pebble.DB
 }
 
 func (d *DB) Transaction() (engine.Transaction, error) {
