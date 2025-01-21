@@ -26,9 +26,9 @@ func (s *Snapshot) Release() {
 	s.Snapshot.Release()
 }
 
-func (s *Snapshot) NewIterator(start, end []byte) (engine.Iterator, error) {
+func (s *Snapshot) NewIterator(slice *engine.Range) engine.Iterator {
 	return s.Snapshot.NewIterator(&util.Range{
-		Start: start,
-		Limit: end,
-	}, nil), nil
+		Start: slice.Start,
+		Limit: slice.Limit,
+	}, nil)
 }

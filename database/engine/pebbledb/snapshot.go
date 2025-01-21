@@ -33,13 +33,10 @@ func (s *Snapshot) Release() {
 	s.Close()
 }
 
-func (s *Snapshot) NewIterator(start, end []byte) (engine.Iterator, error) {
-	iter, err := s.Snapshot.NewIter(&pebble.IterOptions{
-		LowerBound: start,
-		UpperBound: end,
+func (s *Snapshot) NewIterator(slice *engine.Range) engine.Iterator {
+	iter, _ := s.Snapshot.NewIter(&pebble.IterOptions{
+		LowerBound: slice.Start,
+		UpperBound: slice.Limit,
 	})
-	if err != nil {
-		return nil, err
-	}
-	return NewIterator(iter), nil
+	return NewIterator(iter)
 }

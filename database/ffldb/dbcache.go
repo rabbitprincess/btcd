@@ -337,12 +337,8 @@ func (snap *dbCacheSnapshot) Release() {
 // The start key is inclusive and the limit key is exclusive.  Either or both
 // can be nil if the functionality is not desired.
 func (snap *dbCacheSnapshot) NewIterator(slice *engine.Range) *dbCacheIterator {
-	dbIter, err := snap.dbSnapshot.NewIterator(slice.Start, slice.Limit)
-	if err != nil {
-		return nil
-	}
 	return &dbCacheIterator{
-		dbIter:        dbIter,
+		dbIter:        snap.dbSnapshot.NewIterator(slice),
 		cacheIter:     newLdbCacheIter(snap, slice),
 		cacheSnapshot: snap,
 	}
