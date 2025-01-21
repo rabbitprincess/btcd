@@ -2139,9 +2139,9 @@ func openDB(dbType string, dbPath string, network wire.BitcoinNet, create bool) 
 	var err error
 	switch dbType {
 	case PebbleDB:
-		dbEngine, err = pebbledb.NewDB(create, metadataDbPath, 0, 0)
+		dbEngine, err = pebbledb.NewDB(metadataDbPath, create, 0, 0)
 	case LevelDB:
-		dbEngine, err = leveldb.NewDB(create, metadataDbPath)
+		dbEngine, err = leveldb.NewDB(metadataDbPath, create)
 	default:
 		err = fmt.Errorf("driver %q is not registered", dbType)
 	}

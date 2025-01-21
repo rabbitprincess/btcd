@@ -7,7 +7,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-func NewDB(create bool, dbPath string) (engine.Engine, error) {
+func NewDB(dbPath string, create bool) (engine.Engine, error) {
 	opts := opt.Options{
 		ErrorIfExist: create,
 		Strict:       opt.DefaultStrict,

@@ -13,7 +13,7 @@ const (
 	DefaultHandles = 64
 )
 
-func NewDB(create bool, dbPath string, cache, handles int) (engine.Engine, error) {
+func NewDB(dbPath string, create bool, cache, handles int) (engine.Engine, error) {
 	if cache <= 0 {
 		cache = DefaultCache
 	}
