@@ -398,7 +398,7 @@ type dbCache struct {
 //
 // The snapshot must be released after use by calling Release.
 func (c *dbCache) Snapshot() (*dbCacheSnapshot, error) {
-	dbSnapshot, err := c.dbEngine.NewSnapshot()
+	dbSnapshot, err := c.dbEngine.Snapshot()
 	if err != nil {
 		str := "failed to open transaction"
 		return nil, convertErr(str, err)
@@ -424,7 +424,7 @@ func (c *dbCache) Snapshot() (*dbCacheSnapshot, error) {
 // returns a nil error.
 func (c *dbCache) updateDB(fn func(tx engine.Transaction) error) error {
 	// Start a db transaction.
-	tx, err := c.dbEngine.NewTransaction()
+	tx, err := c.dbEngine.Transaction()
 	if err != nil {
 		return convertErr("failed to open ldb transaction", err)
 	}

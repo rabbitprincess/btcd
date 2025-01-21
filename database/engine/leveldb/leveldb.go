@@ -28,7 +28,7 @@ func (d *DB) Init(create bool, dbPath string) error {
 	return nil
 }
 
-func (d *DB) NewTransaction() (engine.Transaction, error) {
+func (d *DB) Transaction() (engine.Transaction, error) {
 	tx, err := d.DB.OpenTransaction()
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (d *DB) NewTransaction() (engine.Transaction, error) {
 	return NewTransaction(tx), nil
 }
 
-func (d *DB) NewSnapshot() (engine.Snapshot, error) {
+func (d *DB) Snapshot() (engine.Snapshot, error) {
 	snapshot, err := d.DB.GetSnapshot()
 	if err != nil {
 		return nil, err

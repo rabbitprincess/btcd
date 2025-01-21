@@ -1,10 +1,15 @@
 package pebbledb
 
-import "github.com/cockroachdb/pebble"
+import (
+	"github.com/btcsuite/btcd/database/engine"
+	"github.com/cockroachdb/pebble"
+)
 
 func NewTransaction(batch *pebble.Batch) *Transaction {
 	return &Transaction{Batch: batch}
 }
+
+var _ engine.Transaction = (*Transaction)(nil)
 
 type Transaction struct {
 	*pebble.Batch

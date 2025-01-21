@@ -2089,7 +2089,7 @@ func fileExists(name string) bool {
 // mainly in a separate function for testing purposes.
 func initDB(engine engine.Engine) error {
 	// The starting block file write cursor location is file num 0, offset 0.
-	tx, err := engine.NewTransaction()
+	tx, err := engine.Transaction()
 	if err != nil {
 		return convertErr(err.Error(), err)
 	}

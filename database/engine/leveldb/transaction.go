@@ -1,12 +1,15 @@
 package leveldb
 
 import (
+	"github.com/btcsuite/btcd/database/engine"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
 func NewTransaction(tx *leveldb.Transaction) *Transaction {
 	return &Transaction{Transaction: tx}
 }
+
+var _ engine.Transaction = (*Transaction)(nil)
 
 type Transaction struct {
 	*leveldb.Transaction

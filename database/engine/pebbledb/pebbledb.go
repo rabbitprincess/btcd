@@ -40,11 +40,11 @@ func (d *DB) Init(create bool, dbPath string) error {
 	return nil
 }
 
-func (d *DB) NewTransaction() (engine.Transaction, error) {
+func (d *DB) Transaction() (engine.Transaction, error) {
 	return NewTransaction(d.DB.NewBatch()), nil
 }
 
-func (d *DB) NewSnapshot() (engine.Snapshot, error) {
+func (d *DB) Snapshot() (engine.Snapshot, error) {
 	return NewSnapshot(d.DB.NewSnapshot()), nil
 }
 
