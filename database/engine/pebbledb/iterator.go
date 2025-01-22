@@ -5,11 +5,9 @@ import (
 	"github.com/cockroachdb/pebble"
 )
 
-func NewIterator(iter *pebble.Iterator) *Iterator {
+func NewIterator(iter *pebble.Iterator) engine.Iterator {
 	return &Iterator{Iterator: iter}
 }
-
-var _ engine.Iterator = (*Iterator)(nil)
 
 type Iterator struct {
 	*pebble.Iterator
