@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSuiteLevelDB(t *testing.T) {
+func TestSuitePebbleDB(t *testing.T) {
 	dbPath := filepath.Join(os.TempDir(), "pebbledb-testsuite")
 	defer func() {
 		require.NoError(t, os.RemoveAll(dbPath))
