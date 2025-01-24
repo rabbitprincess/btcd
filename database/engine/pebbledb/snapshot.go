@@ -14,10 +14,7 @@ type Snapshot struct {
 }
 
 func (s *Snapshot) Has(key []byte) (bool, error) {
-	val, err := s.Get(key)
-	if err != nil {
-		return false, err
-	}
+	val, _ := s.Get(key)
 	return val != nil, nil
 }
 
