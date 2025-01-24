@@ -1,7 +1,6 @@
 package leveldb
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -10,12 +9,9 @@ import (
 )
 
 func TestSuiteLevelDB(t *testing.T) {
-	dbPath := filepath.Join(os.TempDir(), "leveldb-testsuite")
-	defer func() {
-		require.NoError(t, os.RemoveAll(dbPath))
-	}()
-
 	engine.TestSuiteEngine(t, func() engine.Engine {
+		dbPath := filepath.Join(t.TempDir(), "pebbledb-testsuite")
+
 		leveldb, err := NewDB(dbPath, true)
 		require.NoErrorf(t, err, "failed to create leveldb")
 		return leveldb

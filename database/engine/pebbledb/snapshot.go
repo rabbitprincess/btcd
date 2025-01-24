@@ -35,5 +35,6 @@ func (s *Snapshot) NewIterator(slice *engine.Range) engine.Iterator {
 		LowerBound: slice.Start,
 		UpperBound: slice.Limit,
 	})
+	iter.SeekLT(slice.Start)
 	return NewIterator(iter)
 }

@@ -32,7 +32,6 @@ func TestSuiteEngine(t *testing.T, new func() Engine) {
 		gotValue, err := snapshot.Get(key)
 		require.Errorf(t, err, "expected to get error when getting value from snapshot")
 		require.Nil(t, gotValue, "expected to get nil value from snapshot")
-
 		snapshot.Release()
 
 		// Commit the transaction
@@ -50,7 +49,61 @@ func TestSuiteEngine(t *testing.T, new func() Engine) {
 	})
 
 	t.Run("TransactionIterator", func(t *testing.T) {
+		for _, test := range []struct {
+			kvs       map[string]string // random order of key-value pairs
+			ranges    *Range
+			expectkvs [][2]string
+		}{
+			{
+				kvs:       map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"},
+				ranges:    &Range{Start: []byte("key1"), Limit: []byte("key3")},
+				expectkvs: [][2]string{{"key1", "value1"}, {"key2", "value2"}},
+			},
+			{
+				kvs:       map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"},
+				ranges:    &Range{Start: []byte("key10"), Limit: []byte("key30")},
+				expectkvs: [][2]string{{"key2", "value2"}, {"key3", "value3"}},
+			},
+			{
+				kvs:       map[string]string{"key10": "value10", "key11": "value11", "key20": "value20", "key21": "value21"},
+				ranges:    BytesPrefix([]byte("key1")),
+				expectkvs: [][2]string{{"key10", "value10"}, {"key11", "value11"}},
+			},
+		} {
+			engine := new()
+			defer engine.Close()
 
+			// Create new transaction
+			tx, err := engine.Transaction()
+			require.NoErrorf(t, err, "failed to create transaction")
+
+			// Put some data into the transaction
+			for k, v := range test.kvs {
+				err = tx.Put([]byte(k), []byte(v))
+				require.NoErrorf(t, err, "failed to put data into transaction")
+			}
+			// Commit the transaction
+			err = tx.Commit()
+			require.NoErrorf(t, err, "failed to commit transaction")
+
+			// Iterate over the data
+			snapshot, err := engine.Snapshot()
+			require.NoErrorf(t, err, "failed to create snapshot")
+
+			iter := snapshot.NewIterator(test.ranges)
+			var idx int
+			for iter.Next() {
+				if idx >= len(test.expectkvs) {
+					require.FailNowf(t, "unexpected key-value pair", "key: %s, value: %s", iter.Key(), iter.Value())
+				}
+
+				require.Equalf(t, []byte(test.expectkvs[idx][0]), iter.Key(), "key mismatch")
+				require.Equalf(t, []byte(test.expectkvs[idx][1]), iter.Value(), "value mismatch")
+				idx++
+			}
+			iter.Release()
+			snapshot.Release()
+		}
 	})
 
 	t.Run("DbClose", func(t *testing.T) {
