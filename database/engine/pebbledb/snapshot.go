@@ -14,16 +14,25 @@ type Snapshot struct {
 }
 
 func (s *Snapshot) Has(key []byte) (bool, error) {
-	val, _ := s.Get(key)
+	val, err := s.Get(key)
+	if err == pebble.ErrNotFound {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
 	return val != nil, nil
 }
 
 func (s *Snapshot) Get(key []byte) (val []byte, err error) {
-	val, closer, err := s.Snapshot.Get(key)
-	if closer != nil {
-		closer.Close()
+	rawVal, closer, err := s.Snapshot.Get(key)
+	if err != nil {
+		return nil, err
 	}
-	return val, err
+	defer closer.Close()
+
+	val = make([]byte, len(val))
+	copy(val, rawVal)
+	return val, nil
 }
 
 func (s *Snapshot) Release() {
