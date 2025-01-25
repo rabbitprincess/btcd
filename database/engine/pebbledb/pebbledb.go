@@ -1,11 +1,17 @@
 package pebbledb
 
 import (
+	"errors"
 	"runtime"
+	"sync/atomic"
 
 	"github.com/btcsuite/btcd/database/engine"
 	"github.com/cockroachdb/pebble"
 	"github.com/cockroachdb/pebble/bloom"
+)
+
+var (
+	ErrClosed = errors.New("pebbledb: closed")
 )
 
 const (
@@ -47,16 +53,39 @@ func NewDB(dbPath string, create bool, cache, handles int) (engine.Engine, error
 
 type DB struct {
 	*pebble.DB
+
+	closed atomic.Bool
+}
+
+// Set closed flag; return true if not already closed.
+func (db *DB) setClosed() bool {
+	return !db.closed.Swap(true)
+}
+
+// Check whether DB was closed.
+func (db *DB) isClosed() bool {
+	return db.closed.Load()
 }
 
 func (d *DB) Transaction() (engine.Transaction, error) {
+	if d.isClosed() {
+		return nil, ErrClosed
+	}
+
 	return NewTransaction(d.DB.NewBatch()), nil
 }
 
 func (d *DB) Snapshot() (engine.Snapshot, error) {
+	if d.isClosed() {
+		return nil, ErrClosed
+	}
+
 	return NewSnapshot(d.DB.NewSnapshot()), nil
 }
 
 func (d *DB) Close() error {
+	if !d.setClosed() {
+		return ErrClosed
+	}
 	return d.DB.Close()
 }

@@ -24,14 +24,14 @@ func (s *Snapshot) Has(key []byte) (bool, error) {
 }
 
 func (s *Snapshot) Get(key []byte) (val []byte, err error) {
-	rawVal, closer, err := s.Snapshot.Get(key)
+	ori, closer, err := s.Snapshot.Get(key)
 	if err != nil {
 		return nil, err
 	}
 	defer closer.Close()
 
-	val = make([]byte, len(val))
-	copy(val, rawVal)
+	val = make([]byte, len(ori))
+	copy(val, ori)
 	return val, nil
 }
 

@@ -44,7 +44,7 @@ func TestSuiteEngine(t *testing.T, new func() Engine) {
 
 		gotValue, err = snapshot.Get(key)
 		require.NoErrorf(t, err, "failed to get value from snapshot")
-		require.Equalf(t, gotValue, value, "snapshot value mismatch")
+		require.Equalf(t, value, gotValue, "snapshot value mismatch")
 		snapshot.Release()
 	})
 
@@ -56,6 +56,11 @@ func TestSuiteEngine(t *testing.T, new func() Engine) {
 		}{
 			{
 				kvs:       map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"},
+				ranges:    &Range{Start: []byte("key0"), Limit: []byte("key1")},
+				expectkvs: [][2]string{{"key1", "value1"}},
+			},
+			{
+				kvs:       map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"},
 				ranges:    &Range{Start: []byte("key1"), Limit: []byte("key3")},
 				expectkvs: [][2]string{{"key1", "value1"}, {"key2", "value2"}},
 			},
@@ -63,6 +68,11 @@ func TestSuiteEngine(t *testing.T, new func() Engine) {
 				kvs:       map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"},
 				ranges:    &Range{Start: []byte("key10"), Limit: []byte("key30")},
 				expectkvs: [][2]string{{"key2", "value2"}, {"key3", "value3"}},
+			},
+			{
+				kvs:       map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"},
+				ranges:    &Range{Start: []byte("key1"), Limit: []byte("key1")},
+				expectkvs: nil,
 			},
 			{
 				kvs:       map[string]string{"key10": "value10", "key11": "value11", "key20": "value20", "key21": "value21"},
@@ -107,14 +117,21 @@ func TestSuiteEngine(t *testing.T, new func() Engine) {
 	})
 
 	t.Run("DbClose", func(t *testing.T) {
-		// engine := new()
-		// err := engine.Close()
-		// require.NoErrorf(t, err, "failed to close engine")
+		engine := new()
+		err := engine.Close()
+		require.NoErrorf(t, err, "failed to close engine")
 
-		// // Ensure that the engine is closed
-		// err = engine.Close()
-		// require.Errorf(t, err, "expected to get error when closing closed engine")
+		// Ensure that the engine is closed
+		err = engine.Close()
+		require.Errorf(t, err, "expected to get error when closing closed engine")
 
+		// Get a transaction from a closed engine
+		_, err = engine.Transaction()
+		require.Errorf(t, err, "expected to get error when creating transaction from closed engine")
+
+		// Get a snapshot from a closed engine
+		_, err = engine.Snapshot()
+		require.Errorf(t, err, "expected to get error when creating snapshot from closed engine")
 	})
 
 }
