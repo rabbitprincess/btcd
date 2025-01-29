@@ -9,17 +9,6 @@ import (
 	"math/rand"
 )
 
-// cloneTreapNode returns a shallow copy of the passed node.
-func cloneTreapNode(node *treapNode) *treapNode {
-	return &treapNode{
-		key:      node.key,
-		value:    node.value,
-		priority: node.priority,
-		left:     node.left,
-		right:    node.right,
-	}
-}
-
 // Immutable represents a treap data structure which is used to hold ordered
 // key/value pairs using a combination of binary search tree and heap semantics.
 // It is a self-organizing and randomized data structure that doesn't require
@@ -240,6 +229,8 @@ func (t *Immutable) Delete(key []byte) *Immutable {
 	if delNode == nil {
 		return t
 	}
+
+	defer releaseTreapNode(delNode)
 
 	// When the only node in the tree is the root node and it is the one
 	// being deleted, there is nothing else to do besides removing it.

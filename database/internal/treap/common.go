@@ -48,12 +48,6 @@ func nodeSize(node *treapNode) uint64 {
 	return nodeFieldsSize + uint64(len(node.key)+len(node.value))
 }
 
-// newTreapNode returns a new node from the given key, value, and priority.  The
-// node is not initially linked to any others.
-func newTreapNode(key, value []byte, priority int) *treapNode {
-	return &treapNode{key: key, value: value, priority: priority}
-}
-
 // parentStack represents a stack of parent treap nodes that are used during
 // iteration.  It consists of a static array for holding the parents and a
 // dynamic overflow slice.  It is extremely unlikely the overflow will ever be

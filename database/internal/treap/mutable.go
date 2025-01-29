@@ -184,6 +184,8 @@ func (t *Mutable) Delete(key []byte) {
 		return
 	}
 
+	defer releaseTreapNode(node)
+
 	// When the only node in the tree is the root node and it is the one
 	// being deleted, there is nothing else to do besides removing it.
 	if parent == nil && node.left == nil && node.right == nil {
@@ -266,6 +268,19 @@ func (t *Mutable) ForEach(fn func(k, v []byte) bool) {
 
 // Reset efficiently removes all items in the treap.
 func (t *Mutable) Reset() {
+	var releaseSubtree func(node *treapNode)
+	releaseSubtree = func(node *treapNode) {
+		if node == nil {
+			return
+		}
+		releaseSubtree(node.left)
+		releaseSubtree(node.right)
+
+		// return current node to the pool
+		releaseTreapNode(node)
+	}
+	releaseSubtree(t.root)
+
 	t.count = 0
 	t.totalSize = 0
 	t.root = nil
