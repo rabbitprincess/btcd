@@ -88,4 +88,4 @@ retract (
 	v0.13.0-beta
 )
 
-go 1.22.11
+go 1.22
