@@ -230,8 +230,6 @@ func (t *Immutable) Delete(key []byte) *Immutable {
 		return t
 	}
 
-	defer releaseTreapNode(delNode)
-
 	// When the only node in the tree is the root node and it is the one
 	// being deleted, there is nothing else to do besides removing it.
 	parent := parents.At(1)
