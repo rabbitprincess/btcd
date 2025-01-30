@@ -11,9 +11,14 @@ func NewSnapshot(snapshot *pebble.Snapshot) engine.Snapshot {
 
 type Snapshot struct {
 	*pebble.Snapshot
+	released bool
 }
 
 func (s *Snapshot) Has(key []byte) (bool, error) {
+	if s.released {
+		return false, ErrSnapshotReleased
+	}
+
 	val, err := s.Get(key)
 	if err == pebble.ErrNotFound {
 		return false, nil
@@ -24,6 +29,10 @@ func (s *Snapshot) Has(key []byte) (bool, error) {
 }
 
 func (s *Snapshot) Get(key []byte) (val []byte, err error) {
+	if s.released {
+		return nil, ErrSnapshotReleased
+	}
+
 	ori, closer, err := s.Snapshot.Get(key)
 	if err != nil {
 		return nil, err
@@ -36,10 +45,17 @@ func (s *Snapshot) Get(key []byte) (val []byte, err error) {
 }
 
 func (s *Snapshot) Release() {
-	s.Close()
+	if !s.released {
+		s.released = true
+		s.Close()
+	}
 }
 
 func (s *Snapshot) NewIterator(slice *engine.Range) engine.Iterator {
+	if s.released {
+		return nil
+	}
+
 	iter, _ := s.Snapshot.NewIter(&pebble.IterOptions{
 		LowerBound: slice.Start,
 		UpperBound: slice.Limit,

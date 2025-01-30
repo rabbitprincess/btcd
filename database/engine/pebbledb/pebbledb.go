@@ -11,7 +11,10 @@ import (
 )
 
 var (
-	ErrClosed = errors.New("pebbledb: closed")
+	ErrDbClosed         = errors.New("pebbledb: closed")
+	ErrTxClosed         = errors.New("pebbledb: transaction already closed")
+	ErrSnapshotReleased = errors.New("pebbledb: snapshot released")
+	ErrIteratorReleased = errors.New("pebbledb: iterator released")
 )
 
 const (
@@ -69,23 +72,21 @@ func (db *DB) isClosed() bool {
 
 func (d *DB) Transaction() (engine.Transaction, error) {
 	if d.isClosed() {
-		return nil, ErrClosed
+		return nil, ErrDbClosed
 	}
-
 	return NewTransaction(d.DB.NewBatch()), nil
 }
 
 func (d *DB) Snapshot() (engine.Snapshot, error) {
 	if d.isClosed() {
-		return nil, ErrClosed
+		return nil, ErrDbClosed
 	}
-
 	return NewSnapshot(d.DB.NewSnapshot()), nil
 }
 
 func (d *DB) Close() error {
 	if !d.setClosed() {
-		return ErrClosed
+		return ErrDbClosed
 	}
 	return d.DB.Close()
 }

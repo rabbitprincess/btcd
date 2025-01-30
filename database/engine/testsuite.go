@@ -57,6 +57,11 @@ func TestSuiteEngine(t *testing.T, new func() Engine) {
 			{
 				kvs:       map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"},
 				ranges:    &Range{Start: []byte("key0"), Limit: []byte("key1")},
+				expectkvs: nil,
+			},
+			{
+				kvs:       map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"},
+				ranges:    &Range{Start: []byte("key0"), Limit: []byte("key2")},
 				expectkvs: [][2]string{{"key1", "value1"}},
 			},
 			{
@@ -71,7 +76,7 @@ func TestSuiteEngine(t *testing.T, new func() Engine) {
 			},
 			{
 				kvs:       map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"},
-				ranges:    &Range{Start: []byte("key1"), Limit: []byte("key1")},
+				ranges:    &Range{Start: []byte("key2"), Limit: []byte("key2")},
 				expectkvs: nil,
 			},
 			{
@@ -111,6 +116,8 @@ func TestSuiteEngine(t *testing.T, new func() Engine) {
 				require.Equalf(t, []byte(test.expectkvs[idx][1]), iter.Value(), "value mismatch")
 				idx++
 			}
+			require.Equalf(t, len(test.expectkvs), idx, "key-value pair count mismatch")
+
 			iter.Release()
 			snapshot.Release()
 		}
@@ -118,7 +125,30 @@ func TestSuiteEngine(t *testing.T, new func() Engine) {
 
 	t.Run("DbClose", func(t *testing.T) {
 		engine := new()
-		err := engine.Close()
+
+		// release
+		transaction, err := engine.Transaction()
+		require.NoErrorf(t, err, "failed to create transaction")
+
+		transaction.Discard()
+		transaction.Discard() // multiple calls to discard should be safe
+		err = transaction.Commit()
+		require.Errorf(t, err, "expected to get error when committing discarded transaction")
+
+		snapshot, err := engine.Snapshot()
+		require.NoErrorf(t, err, "failed to create snapshot")
+
+		iterator := snapshot.NewIterator(&Range{})
+		require.NoErrorf(t, iterator.Error(), "failed to create iterator")
+		iterator.Release()
+		iterator.Release() // multiple calls to release should be safe
+
+		snapshot.Release()
+		snapshot.Release() // multiple calls to release should be safe
+		_, err = snapshot.Get([]byte("key"))
+		require.Errorf(t, err, "expected to get error when getting value from released snapshot")
+
+		err = engine.Close()
 		require.NoErrorf(t, err, "failed to close engine")
 
 		// Ensure that the engine is closed
