@@ -133,28 +133,28 @@ func makeDbErr(c database.ErrorCode, desc string, err error) database.Error {
 // convertErr converts the passed leveldb error into a database error with an
 // equivalent error code  and the passed description.  It also sets the passed
 // error as the underlying error.
-func convertErr(desc string, ldbErr error) database.Error {
+func convertErr(desc string, dbErr error) database.Error {
 	// Use the driver-specific error code by default.  The code below will
 	// update this with the converted error if it's recognized.
 	var code = database.ErrDriverSpecific
 
 	switch {
 	// Database corruption errors.
-	case ldberrors.IsCorrupted(ldbErr):
+	case ldberrors.IsCorrupted(dbErr):
 		code = database.ErrCorruption
 
 	// Database open/create errors.
-	case ldbErr == ldb.ErrClosed:
+	case dbErr == ldb.ErrClosed, dbErr == pebbledb.ErrDbClosed:
 		code = database.ErrDbNotOpen
 
 	// Transaction errors.
-	case ldbErr == ldb.ErrSnapshotReleased:
+	case dbErr == ldb.ErrSnapshotReleased, dbErr == pebbledb.ErrSnapshotReleased:
 		code = database.ErrTxClosed
-	case ldbErr == ldb.ErrIterReleased:
+	case dbErr == ldb.ErrIterReleased, dbErr == pebbledb.ErrIteratorReleased:
 		code = database.ErrTxClosed
 	}
 
-	return database.Error{ErrorCode: code, Description: desc, Err: ldbErr}
+	return database.Error{ErrorCode: code, Description: desc, Err: dbErr}
 }
 
 // copySlice returns a copy of the passed slice.  This is mostly used to copy
