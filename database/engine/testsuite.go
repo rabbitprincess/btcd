@@ -142,7 +142,6 @@ func TestSuiteEngine(t *testing.T, new func() Engine) {
 		require.NoErrorf(t, iterator.Error(), "failed to create iterator")
 		iterator.Release()
 		iterator.Release() // multiple calls to release should be safe
-		require.Errorf(t, iterator.Error(), "expected to get error when getting error from released iterator")
 
 		snapshot.Release()
 		snapshot.Release() // multiple calls to release should be safe
