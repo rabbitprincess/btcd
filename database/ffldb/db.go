@@ -130,7 +130,7 @@ func makeDbErr(c database.ErrorCode, desc string, err error) database.Error {
 	return database.Error{ErrorCode: c, Description: desc, Err: err}
 }
 
-// convertErr converts the passed leveldb error into a database error with an
+// convertErr converts the passed db engine error into a database error with an
 // equivalent error code  and the passed description.  It also sets the passed
 // error as the underlying error.
 func convertErr(desc string, dbErr error) database.Error {
@@ -1865,7 +1865,7 @@ type db struct {
 	closeLock sync.RWMutex // Make database close block while txns active.
 	closed    bool         // Is the database closed?
 	store     *blockStore  // Handles read/writing blocks to flat files.
-	cache     *dbCache     // Cache layer which wraps underlying leveldb DB.
+	cache     *dbCache     // Cache layer which wraps underlying DB engine.
 }
 
 // Enforce db implements the database.DB interface.

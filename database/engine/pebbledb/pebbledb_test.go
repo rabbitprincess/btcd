@@ -12,7 +12,7 @@ func TestSuitePebbleDB(t *testing.T) {
 	engine.TestSuiteEngine(t, func() engine.Engine {
 		dbPath := filepath.Join(t.TempDir(), "pebbledb-testsuite")
 
-		pebbledb, err := NewDB(dbPath, false, 0, 0)
+		pebbledb, err := NewDB(dbPath, true, 0, 0)
 		require.NoErrorf(t, err, "failed to create pebbledb")
 		return pebbledb
 	})
