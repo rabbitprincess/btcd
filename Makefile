@@ -4,14 +4,11 @@ LINT_PKG := github.com/golangci/golangci-lint/cmd/golangci-lint
 GOACC_PKG := github.com/ory/go-acc
 GOIMPORTS_PKG := golang.org/x/tools/cmd/goimports
 
-GO_BIN := ${GOPATH}/bin
+GO_BIN ?= $(HOME)/go/bin
 LINT_BIN := $(GO_BIN)/golangci-lint
 GOACC_BIN := $(GO_BIN)/go-acc
+GOIMPORTS_BIN := $(GO_BIN)/goimports
 
-LINT_COMMIT := v1.18.0
-GOACC_COMMIT := 80342ae2e0fcf265e99e76bcc4efd022c7c3811b
-
-DEPGET := cd /tmp && go install -v
 GOBUILD := go build -v
 GOINSTALL := go install -v 
 DEV_TAGS := rpctest
@@ -51,16 +48,16 @@ all: build check
 
 $(LINT_BIN):
 	@$(call print, "Fetching linter")
-	$(DEPGET) $(LINT_PKG)@$(LINT_COMMIT)
+	$(GOINSTALL) $(LINT_PKG)@latest
 
 $(GOACC_BIN):
 	@$(call print, "Fetching go-acc")
-	$(DEPGET) $(GOACC_PKG)@$(GOACC_COMMIT)
+	$(GOINSTALL) $(GOACC_PKG)@latest
 
 #? goimports: Install goimports
 goimports:
 	@$(call print, "Installing goimports.")
-	$(DEPGET) $(GOIMPORTS_PKG)
+	$(GOINSTALL) $(GOIMPORTS_PKG)@latest
 
 # ============
 # INSTALLATION
