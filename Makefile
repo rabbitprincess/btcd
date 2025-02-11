@@ -7,9 +7,8 @@ GO_BIN := $(shell go env GOPATH)/bin
 LINT_BIN := $(GO_BIN)/golangci-lint
 GOIMPORTS_BIN := $(GO_BIN)/goimports
 
-DEPGET := cd /tmp && go install -v
 GOBUILD := go build -v
-GOINSTALL := go install -v 
+GOINSTALL := go install -v
 DEV_TAGS := rpctest
 GOTEST_DEV = go test -v -tags=$(DEV_TAGS)
 GOTEST := go test -v
