@@ -140,8 +140,11 @@ clean:
 	
 #? tidy-module: Run 'go mod tidy' for all modules
 tidy-module:
-	echo "Running 'go mod tidy' for all modules"
-	scripts/tidy_modules.sh
+	@$(call print, "Running 'go mod tidy' for all modules")
+	go mod tidy
+	cd btcec; go mod tidy
+	cd btcutil; go mod tidy
+	cd btcutil/psbt; go mod tidy
 
 .PHONY: all \
 	default \
