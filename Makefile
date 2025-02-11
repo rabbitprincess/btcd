@@ -15,11 +15,6 @@ GOTEST := go test -v
 
 GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
-RM := rm -f
-CP := cp
-MAKE := make
-XARGS := xargs -L 1
-
 # Linting uses a lot of memory, so keep it under control by limiting the number
 # of workers if requested.
 ifneq ($(workers),)
@@ -135,7 +130,7 @@ lint: $(LINT_BIN)
 #? clean: Clean source
 clean:
 	@$(call print, "Cleaning source.$(NC)")
-	$(RM) coverage.txt btcec/coverage.txt btcutil/coverage.txt btcutil/psbt/coverage.txt
+	rm -f coverage.txt btcec/coverage.txt btcutil/coverage.txt btcutil/psbt/coverage.txt
 	
 #? tidy-module: Run 'go mod tidy' for all modules
 tidy-module:
