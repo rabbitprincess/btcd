@@ -5,6 +5,7 @@ GOIMPORTS_PKG := golang.org/x/tools/cmd/goimports
 
 GO_BIN := $(shell go env GOPATH)/bin
 LINT_BIN := $(GO_BIN)/golangci-lint
+GOIMPORTS_BIN := $(GO_BIN)/goimports
 
 DEPGET := cd /tmp && go install -v
 GOBUILD := go build -v
@@ -47,7 +48,7 @@ $(LINT_BIN):
 #? goimports: Install goimports
 goimports:
 	@$(call print, "Installing goimports.")
-	$(DEPGET) $(GOIMPORTS_PKG)
+	$(GOINSTALL) $(GOIMPORTS_PKG)@latest
 
 # ============
 # INSTALLATION
@@ -95,7 +96,7 @@ unit:
 #? unit-cover: Run unit coverage tests
 unit-cover:
 	@$(call print, "Running unit coverage tests.")
-	go test -coverprofile=coverage.out ./...
+	go test -coverprofile=coverage.txt ./...
 
 	# We need to remove the /v2 pathing from the module to have it work
 	# nicely with the CI tool we use to render live code coverage.
@@ -118,7 +119,7 @@ unit-race:
 #? fmt: Fix imports and formatting source
 fmt: goimports
 	@$(call print, "Fixing imports.")
-	goimports -w $(GOFILES_NOVENDOR)
+	$(GOIMPORTS_BIN) -w $(GOFILES_NOVENDOR)
 	@$(call print, "Formatting source.")
 	gofmt -l -w -s $(GOFILES_NOVENDOR)
 
