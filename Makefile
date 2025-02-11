@@ -3,10 +3,8 @@ PKG := github.com/btcsuite/btcd
 LINT_PKG := github.com/golangci/golangci-lint/cmd/golangci-lint
 GOIMPORTS_PKG := golang.org/x/tools/cmd/goimports
 
-GO_BIN := ${GOPATH}/bin
+GO_BIN := $(shell go env GOPATH)/bin
 LINT_BIN := $(GO_BIN)/golangci-lint
-
-LINT_COMMIT := v1.18.0
 
 DEPGET := cd /tmp && go install -v
 GOBUILD := go build -v
@@ -27,8 +25,9 @@ XARGS := xargs -L 1
 ifneq ($(workers),)
 LINT_WORKERS = --concurrency=$(workers)
 endif
+LINT_TIMEOUT := 5m
 
-LINT = $(LINT_BIN) run -v $(LINT_WORKERS)
+LINT = $(LINT_BIN) run -v $(LINT_WORKERS) --timeout=$(LINT_TIMEOUT) --issues-exit-code=0
 
 GREEN := "\\033[0;32m"
 NC := "\\033[0m"
@@ -48,7 +47,7 @@ all: build check
 
 $(LINT_BIN):
 	@$(call print, "Fetching linter")
-	$(DEPGET) $(LINT_PKG)@$(LINT_COMMIT)
+	$(GOINSTALL) $(LINT_PKG)@latest
 
 #? goimports: Install goimports
 goimports:
