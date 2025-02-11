@@ -12,6 +12,7 @@ GOINSTALL := go install -v
 DEV_TAGS := rpctest
 GOTEST_DEV = go test -v -tags=$(DEV_TAGS)
 GOTEST := go test -v
+GOMODTIDY := go mod tidy
 
 GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
@@ -95,13 +96,13 @@ unit:
 #? unit-cover: Run unit coverage tests
 unit-cover:
 	@$(call print, "Running unit coverage tests.")
-	go test -coverprofile=coverage.txt ./...
+	$(GOTEST) -coverprofile=coverage.txt ./...
 
 	# We need to remove the /v2 pathing from the module to have it work
 	# nicely with the CI tool we use to render live code coverage.
-	cd btcec; go test -coverprofile=coverage.txt ./...; sed -i.bak 's/v2\///g' coverage.txt
-	cd btcutil; go test -coverprofile=coverage.txt ./...
-	cd btcutil/psbt; go test -coverprofile=coverage.txt ./...
+	cd btcec; $(GOTEST) -coverprofile=coverage.txt ./...; sed -i.bak 's/v2\///g' coverage.txt
+	cd btcutil; $(GOTEST) -coverprofile=coverage.txt ./...
+	cd btcutil/psbt; $(GOTEST) -coverprofile=coverage.txt ./...
 
 #? unit-race: Run unit race tests
 unit-race:
@@ -135,10 +136,10 @@ clean:
 #? tidy-module: Run 'go mod tidy' for all modules
 tidy-module:
 	@$(call print, "Running 'go mod tidy' for all modules")
-	go mod tidy
-	cd btcec; go mod tidy
-	cd btcutil; go mod tidy
-	cd btcutil/psbt; go mod tidy
+	$(GOMODTIDY)
+	cd btcec; $(GOMODTIDY)
+	cd btcutil; $(GOMODTIDY)
+	cd btcutil/psbt; $(GOMODTIDY)
 
 .PHONY: all \
 	default \
@@ -149,7 +150,8 @@ tidy-module:
 	unit-race \
 	fmt \
 	lint \
-	clean
+	clean \
+	tidy-module
 
 #? help: Get more info on make commands
 help: Makefile
