@@ -14,8 +14,6 @@ GOTEST_DEV = go test -v -tags=$(DEV_TAGS)
 GOTEST := go test -v
 GOMODTIDY := go mod tidy
 
-GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
-
 # Linting uses a lot of memory, so keep it under control by limiting the number
 # of workers if requested.
 ifneq ($(workers),)
@@ -89,9 +87,9 @@ check: unit
 unit:
 	@$(call print, "Running unit tests.")
 	$(GOTEST_DEV) ./... -test.timeout=20m
-	cd btcec; $(GOTEST_DEV) ./... -test.timeout=20m
-	cd btcutil; $(GOTEST_DEV) ./... -test.timeout=20m
-	cd btcutil/psbt; $(GOTEST_DEV) ./... -test.timeout=20m
+	cd btcec && $(GOTEST_DEV) ./... -test.timeout=20m
+	cd btcutil && $(GOTEST_DEV) ./... -test.timeout=20m
+	cd btcutil/psbt && $(GOTEST_DEV) ./... -test.timeout=20m
 
 #? unit-cover: Run unit coverage tests
 unit-cover:
@@ -100,17 +98,17 @@ unit-cover:
 
 	# We need to remove the /v2 pathing from the module to have it work
 	# nicely with the CI tool we use to render live code coverage.
-	cd btcec; $(GOTEST) -coverprofile=coverage.txt ./...; sed -i.bak 's/v2\///g' coverage.txt
-	cd btcutil; $(GOTEST) -coverprofile=coverage.txt ./...
-	cd btcutil/psbt; $(GOTEST) -coverprofile=coverage.txt ./...
+	cd btcec && $(GOTEST) -coverprofile=coverage.txt ./... && sed -i.bak 's/v2\///g' coverage.txt
+	cd btcutil && $(GOTEST) -coverprofile=coverage.txt ./...
+	cd btcutil/psbt && $(GOTEST) -coverprofile=coverage.txt ./...
 
 #? unit-race: Run unit race tests
 unit-race:
 	@$(call print, "Running unit race tests.")
 	env CGO_ENABLED=1 GORACE="history_size=7 halt_on_errors=1" $(GOTEST) -race -test.timeout=20m ./...
-	cd btcec; env CGO_ENABLED=1 GORACE="history_size=7 halt_on_errors=1" $(GOTEST) -race -test.timeout=20m ./...
-	cd btcutil; env CGO_ENABLED=1 GORACE="history_size=7 halt_on_errors=1" $(GOTEST) -race -test.timeout=20m ./...
-	cd btcutil/psbt; env CGO_ENABLED=1 GORACE="history_size=7 halt_on_errors=1" $(GOTEST) -race -test.timeout=20m ./...
+	cd btcec && env CGO_ENABLED=1 GORACE="history_size=7 halt_on_errors=1" $(GOTEST) -race -test.timeout=20m ./...
+	cd btcutil && env CGO_ENABLED=1 GORACE="history_size=7 halt_on_errors=1" $(GOTEST) -race -test.timeout=20m ./...
+	cd btcutil/psbt && env CGO_ENABLED=1 GORACE="history_size=7 halt_on_errors=1" $(GOTEST) -race -test.timeout=20m ./...
 
 # =========
 # UTILITIES
@@ -119,9 +117,9 @@ unit-race:
 #? fmt: Fix imports and formatting source
 fmt: goimports
 	@$(call print, "Fixing imports.")
-	$(GOIMPORTS_BIN) -w $(GOFILES_NOVENDOR)
+	$(GOIMPORTS_BIN) -w .
 	@$(call print, "Formatting source.")
-	gofmt -l -w -s $(GOFILES_NOVENDOR)
+	gofmt -l -w -s .
 
 #? lint: Lint source
 lint: $(LINT_BIN)
@@ -137,9 +135,9 @@ clean:
 tidy-module:
 	@$(call print, "Running 'go mod tidy' for all modules")
 	$(GOMODTIDY)
-	cd btcec; $(GOMODTIDY)
-	cd btcutil; $(GOMODTIDY)
-	cd btcutil/psbt; $(GOMODTIDY)
+	cd btcec && $(GOMODTIDY)
+	cd btcutil && $(GOMODTIDY)
+	cd btcutil/psbt && $(GOMODTIDY)
 
 .PHONY: all \
 	default \
