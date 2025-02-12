@@ -21,7 +21,7 @@ LINT_WORKERS = --concurrency=$(workers)
 endif
 LINT_TIMEOUT := 5m
 
-LINT = $(LINT_BIN) run -v $(LINT_WORKERS) --timeout=$(LINT_TIMEOUT) --issues-exit-code=0
+LINT = $(LINT_BIN) run -v $(LINT_WORKERS) --timeout=$(LINT_TIMEOUT)
 
 GREEN := "\\033[0;32m"
 NC := "\\033[0m"
