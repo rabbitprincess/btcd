@@ -39,35 +39,44 @@ jobs:
         run: make unit-cover
 
       - name: Send top-level coverage
-        uses: shogo82148/actions-goveralls@v1
+        uses: coverallsapp/github-action@v2
+        continue-on-error: true
         with:
-          path-to-profile: coverage.txt
+          file: coverage.txt
           flag-name: btcd
+          format: 'golang'
           parallel: true
 
       - name: Send btcec
-        uses: shogo82148/actions-goveralls@v1
+        uses: coverallsapp/github-action@v2
+        continue-on-error: true
         with:
-          path-to-profile: btcec/coverage.txt
+          file: btcec/coverage.txt
           flag-name: btcec
+          format: 'golang'
           parallel: true
 
       - name: Send btcutil coverage
-        uses: shogo82148/actions-goveralls@v1
+        uses: coverallsapp/github-action@v2
+        continue-on-error: true
         with:
-          path-to-profile: btcutil/coverage.txt
+          file: btcutil/coverage.txt
           flag-name: btcutil
+          format: 'golang'
           parallel: true
 
       - name: Send btcutil coverage for psbt package
-        uses: shogo82148/actions-goveralls@v1
+        uses: coverallsapp/github-action@v2
+        continue-on-error: true
         with:
-          path-to-profile: btcutil/psbt/coverage.txt
+          file: btcutil/psbt/coverage.txt
           flag-name: btcutilpsbt
+          format: 'golang'
           parallel: true
       
       - name: Notify coveralls all reports sent
-        uses: shogo82148/actions-goveralls@v1
+        uses: coverallsapp/github-action@v2
+        continue-on-error: true
         with:
           parallel-finished: true
 
