@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -192,6 +193,110 @@ func TestMapsliceConcurrency(t *testing.T) {
 
 		wg.Wait()
 	}
+}
+
+func BenchmarkMapSlice(b *testing.B) {
+	maxSize := calculateRoughMapSize(1000, bucketSize)
+
+	maxEntriesFirstMap := 500
+	ms1 := make(map[wire.OutPoint]*UtxoEntry, maxEntriesFirstMap)
+	ms := mapSlice{
+		maps:                []map[wire.OutPoint]*UtxoEntry{ms1},
+		maxEntries:          []int{maxEntriesFirstMap},
+		maxTotalMemoryUsage: uint64(maxSize),
+	}
+
+	keys := generateTestKeys(b.N)
+
+	b.Run("Put_SingleThread", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ms.put(keys[i%len(keys)], nil, 0)
+		}
+	})
+
+	b.Run("Get_SingleThread", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ms.get(keys[i%len(keys)])
+		}
+	})
+
+	b.Run("Delete_SingleThread", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ms.delete(keys[i%len(keys)])
+		}
+	})
+}
+
+func BenchmarkConcurrentMapSlice(b *testing.B) {
+	maxSize := calculateRoughMapSize(1000, bucketSize)
+
+	maxEntriesFirstMap := 500
+	ms1 := make(map[wire.OutPoint]*UtxoEntry, maxEntriesFirstMap)
+	ms := mapSlice{
+		maps:                []map[wire.OutPoint]*UtxoEntry{ms1},
+		maxEntries:          []int{maxEntriesFirstMap},
+		maxTotalMemoryUsage: uint64(maxSize),
+	}
+
+	keys := generateTestKeys(b.N)
+	numWorkers := runtime.NumCPU()
+
+	b.Run("Put_Concurrent", func(b *testing.B) {
+		var wg sync.WaitGroup
+		b.ResetTimer()
+		for i := 0; i < numWorkers; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				for j := id; j < b.N; j += numWorkers {
+					ms.put(keys[j%len(keys)], nil, 0)
+				}
+			}(i)
+		}
+		wg.Wait()
+	})
+
+	b.Run("Get_Concurrent", func(b *testing.B) {
+		var wg sync.WaitGroup
+		b.ResetTimer()
+		for i := 0; i < numWorkers; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				for j := id; j < b.N; j += numWorkers {
+					ms.get(keys[j%len(keys)])
+				}
+			}(i)
+		}
+		wg.Wait()
+	})
+
+	b.Run("Delete_Concurrent", func(b *testing.B) {
+		var wg sync.WaitGroup
+		b.ResetTimer()
+		for i := 0; i < numWorkers; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				for j := id; j < b.N; j += numWorkers {
+					ms.delete(keys[j%len(keys)])
+				}
+			}(i)
+		}
+		wg.Wait()
+	})
+}
+
+// generateTestKeys generates a slice of wire.OutPoint keys for benchmarking.
+func generateTestKeys(n int) []wire.OutPoint {
+	keys := make([]wire.OutPoint, n)
+	for i := range n {
+		var buf [4]byte
+		binary.BigEndian.PutUint32(buf[:], uint32(i))
+		hash := sha256.Sum256(buf[:])
+		keys[i] = wire.OutPoint{Hash: hash, Index: uint32(i)}
+	}
+	return keys
 }
 
 // getValidP2PKHScript returns a valid P2PKH script.  Useful as unspendables cannot be
