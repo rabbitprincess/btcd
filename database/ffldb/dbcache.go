@@ -451,7 +451,13 @@ func (c *dbCache) commitTreaps(pendingKeys, pendingRemove TreapForEacher) error 
 	// Perform all db updates using an atomic transaction.
 	return c.updateDB(func(tx engine.Transaction) error {
 		var innerErr error
+
+		lenPendingKeys := 0
+		lenPendingValues := 0
+
 		pendingKeys.ForEach(func(k, v []byte) bool {
+			lenPendingKeys += len(k)
+			lenPendingValues += len(v)
 			if dbErr := tx.Put(k, v); dbErr != nil {
 				str := fmt.Sprintf("failed to put key %q to "+
 					"ldb transaction", k)
@@ -463,8 +469,13 @@ func (c *dbCache) commitTreaps(pendingKeys, pendingRemove TreapForEacher) error 
 		if innerErr != nil {
 			return innerErr
 		}
+		fmt.Println("commit treaps, key size :", lenPendingKeys, "bytes, val size:", lenPendingValues, "bytes")
 
+		lenPendingRemoveKeys := 0
+		lenPendingRemoveValues := 0
 		pendingRemove.ForEach(func(k, v []byte) bool {
+			lenPendingRemoveKeys += len(k)
+			lenPendingRemoveValues += len(v)
 			if dbErr := tx.Delete(k); dbErr != nil {
 				str := fmt.Sprintf("failed to delete "+
 					"key %q from ldb transaction",
@@ -474,6 +485,7 @@ func (c *dbCache) commitTreaps(pendingKeys, pendingRemove TreapForEacher) error 
 			}
 			return true
 		})
+		fmt.Println("commit treaps, remove key size :", lenPendingRemoveKeys, "bytes, val size:", lenPendingRemoveValues, "bytes")
 		return innerErr
 	})
 }
